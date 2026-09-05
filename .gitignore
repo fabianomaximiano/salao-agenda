@@ -1,0 +1,35 @@
+# Variáveis de ambiente
+.env
+.env.*
+!.env.example
+
+# Dependências PHP
+/vendor/
+/src/vendor/
+
+# Dependências Node
+/node_modules/
+/src/node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Backups
+*.bak
+*.backup
+*.old
+
+# Banco / dumps
+*.sql
+*.sql.gz
+
+# Docker local
+docker-compose.override.yml
