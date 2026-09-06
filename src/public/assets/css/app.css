@@ -1,0 +1,427 @@
+:root {
+    --app-primary: #343aef;
+    --app-primary-dark: #2529c7;
+    --app-sidebar: #1f2430;
+    --app-sidebar-hover: #2b3242;
+
+    --app-body-bg: #f5f7fa;
+    --app-card-bg: #ffffff;
+
+    --app-text: #252b36;
+    --app-text-muted: #6c757d;
+
+    --app-border: #e5e9ef;
+    --app-success: #28a745;
+    --app-danger: #dc3545;
+    --app-warning: #ffc107;
+
+    --app-sidebar-width: 250px;
+    --app-navbar-height: 64px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    min-height: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--app-body-bg);
+    color: var(--app-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+}
+
+a {
+    transition: 0.2s ease;
+}
+
+.app-wrapper {
+    min-height: 100vh;
+}
+
+.app-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+
+    width: var(--app-sidebar-width);
+
+    background: var(--app-sidebar);
+    color: #ffffff;
+
+    z-index: 1040;
+
+    overflow-y: auto;
+
+    transition: transform 0.25s ease;
+}
+
+.app-sidebar-brand {
+    min-height: var(--app-navbar-height);
+
+    display: flex;
+    align-items: center;
+
+    padding: 0 22px;
+
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.app-sidebar-brand img {
+    width: 36px;
+    height: 36px;
+    margin-right: 12px;
+}
+
+.app-sidebar-brand strong {
+    color: #ffffff;
+    font-size: 1rem;
+}
+
+.app-sidebar-nav {
+    padding: 20px 12px;
+}
+
+.app-sidebar-title {
+    padding: 8px 12px;
+
+    color: rgba(255, 255, 255, 0.45);
+
+    font-size: 0.7rem;
+    font-weight: 700;
+
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.app-sidebar-link {
+    display: flex;
+    align-items: center;
+
+    margin-bottom: 4px;
+    padding: 11px 12px;
+
+    border-radius: 6px;
+
+    color: rgba(255, 255, 255, 0.78);
+
+    font-size: 0.92rem;
+    font-weight: 500;
+
+    text-decoration: none;
+}
+
+.app-sidebar-link:hover,
+.app-sidebar-link:focus {
+    background: var(--app-sidebar-hover);
+    color: #ffffff;
+    text-decoration: none;
+}
+
+.app-sidebar-link.active {
+    background: var(--app-primary);
+    color: #ffffff;
+}
+
+.app-main {
+    min-height: 100vh;
+
+    margin-left: var(--app-sidebar-width);
+}
+
+.app-navbar {
+    position: sticky;
+    top: 0;
+
+    min-height: var(--app-navbar-height);
+
+    display: flex;
+    align-items: center;
+
+    background: #ffffff;
+
+    border-bottom: 1px solid var(--app-border);
+
+    z-index: 1020;
+}
+
+.app-navbar-content {
+    width: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 24px;
+}
+
+.app-navbar-left,
+.app-navbar-right {
+    display: flex;
+    align-items: center;
+}
+
+.app-navbar-title {
+    margin: 0;
+
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.app-user {
+    display: flex;
+    align-items: center;
+}
+
+.app-user-avatar {
+    width: 36px;
+    height: 36px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin-right: 10px;
+
+    background: #eef0ff;
+
+    border-radius: 50%;
+
+    color: var(--app-primary);
+
+    font-weight: 700;
+}
+
+.app-user-info {
+    line-height: 1.2;
+}
+
+.app-user-info strong,
+.app-user-info small {
+    display: block;
+}
+
+.app-user-info small {
+    color: var(--app-text-muted);
+}
+
+.app-content {
+    padding: 28px 24px;
+}
+
+.app-page-header {
+    margin-bottom: 24px;
+}
+
+.app-page-header h1 {
+    margin-bottom: 6px;
+
+    font-size: 1.7rem;
+    font-weight: 700;
+}
+
+.app-page-header p {
+    margin: 0;
+
+    color: var(--app-text-muted);
+}
+
+.app-card {
+    background: var(--app-card-bg);
+
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+
+    box-shadow: 0 2px 8px rgba(20, 30, 50, 0.03);
+}
+
+.app-card-header {
+    padding: 18px 20px;
+
+    border-bottom: 1px solid var(--app-border);
+}
+
+.app-card-header h2,
+.app-card-header h3 {
+    margin: 0;
+
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.app-card-body {
+    padding: 20px;
+}
+
+.app-stat-card {
+    height: 100%;
+
+    padding: 20px;
+
+    background: #ffffff;
+
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+}
+
+.app-stat-label {
+    margin-bottom: 8px;
+
+    color: var(--app-text-muted);
+
+    font-size: 0.82rem;
+    font-weight: 600;
+
+    text-transform: uppercase;
+}
+
+.app-stat-value {
+    margin: 0;
+
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.form-control,
+.custom-select {
+    min-height: 44px;
+
+    border-color: var(--app-border);
+    border-radius: 6px;
+}
+
+.form-control:focus,
+.custom-select:focus {
+    border-color: var(--app-primary);
+
+    box-shadow: 0 0 0 0.2rem rgba(52, 58, 239, 0.12);
+}
+
+.btn-primary {
+    background: var(--app-primary);
+    border-color: var(--app-primary);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background: var(--app-primary-dark);
+    border-color: var(--app-primary-dark);
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table thead th {
+    border-top: 0;
+
+    color: var(--app-text-muted);
+
+    font-size: 0.78rem;
+    font-weight: 700;
+
+    text-transform: uppercase;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.app-empty-state {
+    padding: 50px 20px;
+
+    text-align: center;
+}
+
+.app-empty-state h3 {
+    margin-bottom: 8px;
+
+    font-size: 1.1rem;
+}
+
+.app-empty-state p {
+    margin-bottom: 20px;
+
+    color: var(--app-text-muted);
+}
+
+.app-mobile-menu {
+    display: none;
+
+    margin-right: 12px;
+
+    background: transparent;
+
+    border: 0;
+
+    font-size: 1.5rem;
+}
+
+.app-overlay {
+    display: none;
+}
+
+@media (max-width: 991.98px) {
+
+    .app-sidebar {
+        transform: translateX(-100%);
+    }
+
+    body.sidebar-open .app-sidebar {
+        transform: translateX(0);
+    }
+
+    .app-main {
+        margin-left: 0;
+    }
+
+    .app-mobile-menu {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    body.sidebar-open .app-overlay {
+        position: fixed;
+        inset: 0;
+
+        display: block;
+
+        background: rgba(0, 0, 0, 0.4);
+
+        z-index: 1030;
+    }
+}
+
+@media (max-width: 767.98px) {
+
+    .app-navbar-content {
+        padding: 0 16px;
+    }
+
+    .app-content {
+        padding: 20px 15px;
+    }
+
+    .app-user-info {
+        display: none;
+    }
+
+    .app-page-header h1 {
+        font-size: 1.4rem;
+    }
+
+    .app-card-body {
+        padding: 16px;
+    }
+
+    .table-responsive {
+        border: 0;
+    }
+}

@@ -1,0 +1,20 @@
+.dashboard-actions .btn {
+    min-height: 46px;
+
+    display: flex;
+    align-items: center;
+
+    margin-bottom: 12px;
+
+    font-weight: 500;
+}
+
+.dashboard-actions .btn:last-child {
+    margin-bottom: 0;
+}
+
+@media (max-width: 767.98px) {
+    .dashboard-actions .btn {
+        width: 100%;
+    }
+}
