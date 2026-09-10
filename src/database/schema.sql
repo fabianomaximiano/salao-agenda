@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Plataforma de Agendamento e Gestão de Atendimentos
--- schema.sql - Versão 2
--- Modelo lógico v2 - MySQL 8.0
+-- schema.sql - Versão 2.1
+-- Modelo lógico v2.1 - MySQL 8.0
 --
 -- IMPORTANTE:
 -- Este arquivo representa a estrutura-alvo do banco.
@@ -114,6 +114,43 @@ CREATE TABLE usuarios (
     UNIQUE KEY uq_usuarios_email (email),
     UNIQUE KEY uq_usuarios_google_id (google_id),
     KEY idx_usuarios_ativo (ativo)
+) ENGINE=InnoDB;
+
+
+-- ----------------------------------------------------------------------------
+-- 2.1 TOKENS DE ATIVAÇÃO DE USUÁRIO
+-- ----------------------------------------------------------------------------
+--
+-- Utilizada no onboarding de administradores e demais convites que exijam
+-- definição inicial de senha. O token em texto puro nunca deve ser persistido:
+-- a aplicação armazena somente SHA-256 (64 caracteres hexadecimais).
+--
+-- Fluxo esperado para administrador criado no cadastro de empresa:
+--   usuarios.senha_hash = NULL
+--   usuarios.ativo      = 0
+--   token válido        -> definição de senha -> usuarios.ativo = 1
+--
+-- Ao reenviar um convite, tokens anteriores ainda não utilizados devem ser
+-- revogados pela aplicação antes da criação do novo token.
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE usuario_tokens_ativacao (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    usuario_id BIGINT UNSIGNED NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    expira_em DATETIME NOT NULL,
+    utilizado_em DATETIME NULL,
+    revogado_em DATETIME NULL,
+    criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_usuario_tokens_ativacao_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        ON DELETE CASCADE,
+
+    UNIQUE KEY uq_usuario_tokens_ativacao_hash (token_hash),
+    KEY idx_usuario_tokens_ativacao_usuario_status
+        (usuario_id, utilizado_em, revogado_em, expira_em),
+    KEY idx_usuario_tokens_ativacao_expiracao (expira_em)
 ) ENGINE=InnoDB;
 
 
@@ -647,6 +684,15 @@ CREATE TABLE agendamento_pets (
 -- 4. O isolamento multiempresa deve ser aplicado também no código:
 --    toda consulta operacional deve ser limitada à empresa do contexto atual.
 --
--- 5. Módulo financeiro completo (pagamentos, comissões, caixa e despesas)
+-- 5. Administradores criados durante o onboarding da empresa devem nascer
+--    com senha_hash = NULL e ativo = 0. O acesso só é liberado após a definição
+--    de senha por token de ativação válido, não utilizado, não revogado e
+--    dentro do prazo de expiração. A aplicação deve invalidar o token no mesmo
+--    commit que grava a senha e ativa o usuário.
+--
+-- 6. O token de ativação em texto puro deve existir apenas no link enviado ao
+--    usuário. No banco, deve ser armazenado somente o hash SHA-256 do token.
+--
+-- 7. Módulo financeiro completo (pagamentos, comissões, caixa e despesas)
 --    ficará para uma fase posterior.
 -- ============================================================================
