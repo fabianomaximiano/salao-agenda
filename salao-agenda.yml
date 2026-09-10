@@ -4,7 +4,7 @@ services:
     container_name: salao_nginx
 
     ports:
-      - "8080:80"
+      - "8096:80"
 
     volumes:
       - ./src:/var/www/html
@@ -34,6 +34,14 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
 
+      - MAIL_HOST=${MAIL_HOST}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_SMTP_SECURE=${MAIL_SMTP_SECURE}
+      - MAIL_FROM_EMAIL=${MAIL_FROM_EMAIL}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME}
+
     depends_on:
       - mysql
 
@@ -48,7 +56,7 @@ services:
       MYSQL_DATABASE: salao_agenda
 
     ports:
-      - "3306:3306"
+      - "33096:3306"
 
     volumes:
       - mysql_data:/var/lib/mysql
@@ -60,7 +68,7 @@ services:
     restart: always
 
     ports:
-      - "8081:80"
+      - "8097:80"
 
     environment:
       PMA_HOST: mysql

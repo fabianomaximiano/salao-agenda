@@ -1,7 +1,11 @@
 {
+    "name": "fabianomaximiano/salao-agenda",
+    "description": "Sistema de agendamento e gestão para empresas de serviços.",
+    "license": "proprietary",
     "require": {
         "google/apiclient": "^2.15",
-        "vlucas/phpdotenv": "^5.6"
+        "vlucas/phpdotenv": "^5.6",
+        "phpmailer/phpmailer": "^7.1"
     },
     "config": {
         "process-timeout": 1200

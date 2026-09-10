@@ -81,7 +81,7 @@ unset(
                                 </h1>
 
                                 <p class="sidebar-description">
-                                    Cadastre sua empresa e crie o primeiro
+                                    Cadastre sua empresa e indique o primeiro
                                     administrador da plataforma.
                                 </p>
 
@@ -136,11 +136,10 @@ unset(
 
                                     <p class="text-muted mb-0">
                                         Preencha os dados abaixo para criar
-                                        o estabelecimento e o administrador principal.
+                                        o estabelecimento e indicar o administrador principal.
                                     </p>
 
                                 </div>
-
 
                                 <?php if ($erro): ?>
 
@@ -157,7 +156,6 @@ unset(
 
                                 <?php endif; ?>
 
-
                                 <?php if ($sucesso): ?>
 
                                     <div
@@ -173,7 +171,6 @@ unset(
 
                                 <?php endif; ?>
 
-
                                 <form
                                     id="cadastroEmpresaForm"
                                     method="post"
@@ -181,6 +178,7 @@ unset(
                                     novalidate
                                 >
 
+                                    <!-- EMPRESA -->
                                     <section class="form-section">
 
                                         <div class="section-heading">
@@ -194,7 +192,6 @@ unset(
                                                 </p>
                                             </div>
                                         </div>
-
 
                                         <div class="form-row">
 
@@ -219,7 +216,6 @@ unset(
                                                 </div>
 
                                             </div>
-
 
                                             <div class="form-group col-md-5">
 
@@ -263,7 +259,6 @@ unset(
 
                                         </div>
 
-
                                         <div class="form-group">
 
                                             <label for="razao_social">
@@ -280,19 +275,20 @@ unset(
 
                                         </div>
 
-
                                         <div class="form-row">
 
                                             <div class="form-group col-md-4">
 
                                                 <label for="tipo_documento">
                                                     Tipo de documento
+                                                    <span class="required">*</span>
                                                 </label>
 
                                                 <select
                                                     class="custom-select"
                                                     id="tipo_documento"
                                                     name="tipo_documento"
+                                                    required
                                                 >
 
                                                     <option value="">
@@ -307,19 +303,19 @@ unset(
                                                         CPF
                                                     </option>
 
-                                                    <option value="outro">
-                                                        Outro
-                                                    </option>
-
                                                 </select>
 
-                                            </div>
+                                                <div class="invalid-feedback">
+                                                    Escolha CPF ou CNPJ.
+                                                </div>
 
+                                            </div>
 
                                             <div class="form-group col-md-8">
 
                                                 <label for="documento">
-                                                    Documento
+                                                    CPF / CNPJ
+                                                    <span class="required">*</span>
                                                 </label>
 
                                                 <input
@@ -327,18 +323,19 @@ unset(
                                                     class="form-control"
                                                     id="documento"
                                                     name="documento"
-                                                    maxlength="20"
-                                                    placeholder="CPF ou CNPJ"
+                                                    maxlength="18"
+                                                    placeholder="Selecione o tipo de documento"
+                                                    inputmode="numeric"
+                                                    required
                                                 >
 
                                                 <div class="invalid-feedback">
-                                                    Informe um documento válido.
+                                                    Informe um CPF ou CNPJ válido.
                                                 </div>
 
                                             </div>
 
                                         </div>
-
 
                                         <div class="form-row">
 
@@ -355,6 +352,7 @@ unset(
                                                     name="email_empresa"
                                                     maxlength="190"
                                                     placeholder="contato@empresa.com.br"
+                                                    autocomplete="email"
                                                 >
 
                                                 <div class="invalid-feedback">
@@ -362,7 +360,6 @@ unset(
                                                 </div>
 
                                             </div>
-
 
                                             <div class="form-group col-md-3">
 
@@ -375,11 +372,12 @@ unset(
                                                     class="form-control"
                                                     id="telefone_empresa"
                                                     name="telefone_empresa"
-                                                    maxlength="30"
+                                                    maxlength="15"
+                                                    placeholder="(11) 3333-4444"
+                                                    inputmode="tel"
                                                 >
 
                                             </div>
-
 
                                             <div class="form-group col-md-3">
 
@@ -392,7 +390,9 @@ unset(
                                                     class="form-control"
                                                     id="whatsapp_empresa"
                                                     name="whatsapp_empresa"
-                                                    maxlength="30"
+                                                    maxlength="15"
+                                                    placeholder="(11) 99999-9999"
+                                                    inputmode="tel"
                                                 >
 
                                             </div>
@@ -401,7 +401,7 @@ unset(
 
                                     </section>
 
-
+                                    <!-- ENDEREÇO -->
                                     <section class="form-section">
 
                                         <div class="section-heading">
@@ -411,11 +411,10 @@ unset(
                                                 <h3>Endereço</h3>
 
                                                 <p>
-                                                    Localização principal da empresa.
+                                                    Informe o CEP para preencher o endereço automaticamente.
                                                 </p>
                                             </div>
                                         </div>
-
 
                                         <div class="form-row">
 
@@ -423,6 +422,7 @@ unset(
 
                                                 <label for="cep">
                                                     CEP
+                                                    <span class="required">*</span>
                                                 </label>
 
                                                 <input
@@ -430,17 +430,30 @@ unset(
                                                     class="form-control"
                                                     id="cep"
                                                     name="cep"
-                                                    maxlength="10"
+                                                    maxlength="9"
                                                     placeholder="00000-000"
+                                                    inputmode="numeric"
+                                                    autocomplete="postal-code"
+                                                    required
                                                 >
 
-                                            </div>
+                                                <div class="invalid-feedback">
+                                                    Informe um CEP válido.
+                                                </div>
 
+                                                <small
+                                                    id="cepFeedback"
+                                                    class="form-text"
+                                                    aria-live="polite"
+                                                ></small>
+
+                                            </div>
 
                                             <div class="form-group col-md-8">
 
                                                 <label for="logradouro">
                                                     Logradouro
+                                                    <span class="required">*</span>
                                                 </label>
 
                                                 <input
@@ -449,12 +462,17 @@ unset(
                                                     id="logradouro"
                                                     name="logradouro"
                                                     maxlength="180"
+                                                    autocomplete="address-line1"
+                                                    required
                                                 >
+
+                                                <div class="invalid-feedback">
+                                                    Informe o logradouro.
+                                                </div>
 
                                             </div>
 
                                         </div>
-
 
                                         <div class="form-row">
 
@@ -462,6 +480,7 @@ unset(
 
                                                 <label for="numero">
                                                     Número
+                                                    <span class="required">*</span>
                                                 </label>
 
                                                 <input
@@ -470,10 +489,14 @@ unset(
                                                     id="numero"
                                                     name="numero"
                                                     maxlength="30"
+                                                    required
                                                 >
 
-                                            </div>
+                                                <div class="invalid-feedback">
+                                                    Informe o número.
+                                                </div>
 
+                                            </div>
 
                                             <div class="form-group col-md-5">
 
@@ -487,15 +510,16 @@ unset(
                                                     id="complemento"
                                                     name="complemento"
                                                     maxlength="120"
+                                                    autocomplete="address-line2"
                                                 >
 
                                             </div>
-
 
                                             <div class="form-group col-md-4">
 
                                                 <label for="bairro">
                                                     Bairro
+                                                    <span class="required">*</span>
                                                 </label>
 
                                                 <input
@@ -504,12 +528,16 @@ unset(
                                                     id="bairro"
                                                     name="bairro"
                                                     maxlength="120"
+                                                    required
                                                 >
+
+                                                <div class="invalid-feedback">
+                                                    Informe o bairro.
+                                                </div>
 
                                             </div>
 
                                         </div>
-
 
                                         <div class="form-row">
 
@@ -517,6 +545,7 @@ unset(
 
                                                 <label for="cidade">
                                                     Cidade
+                                                    <span class="required">*</span>
                                                 </label>
 
                                                 <input
@@ -525,54 +554,38 @@ unset(
                                                     id="cidade"
                                                     name="cidade"
                                                     maxlength="120"
+                                                    autocomplete="address-level2"
+                                                    required
+                                                    readonly
                                                 >
 
-                                            </div>
+                                                <div class="invalid-feedback">
+                                                    Informe a cidade.
+                                                </div>
 
+                                            </div>
 
                                             <div class="form-group col-md-4">
 
                                                 <label for="estado">
-                                                    Estado
+                                                    UF
+                                                    <span class="required">*</span>
                                                 </label>
 
-                                                <select
-                                                    class="custom-select"
+                                                <input
+                                                    type="text"
+                                                    class="form-control"
                                                     id="estado"
                                                     name="estado"
+                                                    maxlength="2"
+                                                    autocomplete="address-level1"
+                                                    required
+                                                    readonly
                                                 >
-                                                    <option value="">
-                                                        UF
-                                                    </option>
 
-                                                    <option value="AC">AC</option>
-                                                    <option value="AL">AL</option>
-                                                    <option value="AP">AP</option>
-                                                    <option value="AM">AM</option>
-                                                    <option value="BA">BA</option>
-                                                    <option value="CE">CE</option>
-                                                    <option value="DF">DF</option>
-                                                    <option value="ES">ES</option>
-                                                    <option value="GO">GO</option>
-                                                    <option value="MA">MA</option>
-                                                    <option value="MT">MT</option>
-                                                    <option value="MS">MS</option>
-                                                    <option value="MG">MG</option>
-                                                    <option value="PA">PA</option>
-                                                    <option value="PB">PB</option>
-                                                    <option value="PR">PR</option>
-                                                    <option value="PE">PE</option>
-                                                    <option value="PI">PI</option>
-                                                    <option value="RJ">RJ</option>
-                                                    <option value="RN">RN</option>
-                                                    <option value="RS">RS</option>
-                                                    <option value="RO">RO</option>
-                                                    <option value="RR">RR</option>
-                                                    <option value="SC">SC</option>
-                                                    <option value="SP">SP</option>
-                                                    <option value="SE">SE</option>
-                                                    <option value="TO">TO</option>
-                                                </select>
+                                                <div class="invalid-feedback">
+                                                    Informe a UF.
+                                                </div>
 
                                             </div>
 
@@ -580,7 +593,7 @@ unset(
 
                                     </section>
 
-
+                                    <!-- ADMINISTRADOR -->
                                     <section class="form-section">
 
                                         <div class="section-heading">
@@ -590,11 +603,10 @@ unset(
                                                 <h3>Administrador principal</h3>
 
                                                 <p>
-                                                    Esta conta terá acesso à administração da empresa.
+                                                    Esta pessoa será o administrador principal da empresa.
                                                 </p>
                                             </div>
                                         </div>
-
 
                                         <div class="form-group">
 
@@ -609,6 +621,7 @@ unset(
                                                 id="admin_nome"
                                                 name="admin_nome"
                                                 maxlength="160"
+                                                autocomplete="name"
                                                 required
                                             >
 
@@ -618,13 +631,13 @@ unset(
 
                                         </div>
 
-
                                         <div class="form-row">
 
                                             <div class="form-group col-md-6">
 
                                                 <label for="admin_cpf">
                                                     CPF
+                                                    <span class="required">*</span>
                                                 </label>
 
                                                 <input
@@ -634,6 +647,8 @@ unset(
                                                     name="admin_cpf"
                                                     maxlength="14"
                                                     placeholder="000.000.000-00"
+                                                    inputmode="numeric"
+                                                    required
                                                 >
 
                                                 <div class="invalid-feedback">
@@ -641,7 +656,6 @@ unset(
                                                 </div>
 
                                             </div>
-
 
                                             <div class="form-group col-md-6">
 
@@ -654,14 +668,14 @@ unset(
                                                     class="form-control"
                                                     id="admin_telefone"
                                                     name="admin_telefone"
-                                                    maxlength="30"
+                                                    maxlength="15"
                                                     placeholder="(11) 99999-9999"
+                                                    inputmode="tel"
                                                 >
 
                                             </div>
 
                                         </div>
-
 
                                         <div class="form-group">
 
@@ -686,64 +700,20 @@ unset(
 
                                         </div>
 
+                                        <div
+                                            class="alert alert-info mb-0"
+                                            role="note"
+                                        >
+                                            <strong>Ativação do acesso</strong>
 
-                                        <div class="form-row">
-
-                                            <div class="form-group col-md-6">
-
-                                                <label for="admin_senha">
-                                                    Senha
-                                                    <span class="required">*</span>
-                                                </label>
-
-                                                <input
-                                                    type="password"
-                                                    class="form-control"
-                                                    id="admin_senha"
-                                                    name="admin_senha"
-                                                    minlength="8"
-                                                    required
-                                                    autocomplete="new-password"
-                                                >
-
-                                                <small class="form-text text-muted">
-                                                    Mínimo de 8 caracteres.
-                                                </small>
-
-                                                <div class="invalid-feedback">
-                                                    A senha deve ter pelo menos 8 caracteres.
-                                                </div>
-
-                                            </div>
-
-
-                                            <div class="form-group col-md-6">
-
-                                                <label for="admin_senha_confirmacao">
-                                                    Confirmar senha
-                                                    <span class="required">*</span>
-                                                </label>
-
-                                                <input
-                                                    type="password"
-                                                    class="form-control"
-                                                    id="admin_senha_confirmacao"
-                                                    name="admin_senha_confirmacao"
-                                                    minlength="8"
-                                                    required
-                                                    autocomplete="new-password"
-                                                >
-
-                                                <div class="invalid-feedback">
-                                                    As senhas precisam ser iguais.
-                                                </div>
-
-                                            </div>
-
+                                            <p class="mb-0 mt-1">
+                                                O administrador receberá um e-mail
+                                                com um link para criar sua senha e
+                                                ativar o acesso ao Salão Agenda.
+                                            </p>
                                         </div>
 
                                     </section>
-
 
                                     <div class="form-actions">
 
@@ -779,7 +749,6 @@ unset(
 
 </div>
 
-
 <script
     src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
 ></script>
@@ -787,7 +756,7 @@ unset(
 <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"
 ></script>
-
+<script src="assets/js/localizacao-brasil.js"></script>
 <script src="assets/js/cadastro-empresa.js"></script>
 
 </body>
