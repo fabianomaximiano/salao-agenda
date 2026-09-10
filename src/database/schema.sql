@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Plataforma de Agendamento e Gestão de Atendimentos
--- schema.sql - Versão 2.1
--- Modelo lógico v2.1 - MySQL 8.0
+-- schema.sql - Versão 2.2
+-- Modelo lógico v2.2 - MySQL 8.0
 --
 -- IMPORTANTE:
 -- Este arquivo representa a estrutura-alvo do banco.
@@ -94,9 +94,12 @@ INSERT INTO segmentos (nome, slug) VALUES
 -- 2. USUÁRIOS / AUTENTICAÇÃO
 -- ============================================================================
 --
--- usuarios representa a IDENTIDADE DE ACESSO.
--- Dados pessoais vinculados ao estabelecimento ficam em pessoas.
--- Um usuário pode participar de mais de uma empresa.
+-- usuarios representa exclusivamente a IDENTIDADE DE ACESSO.
+-- Ele não define se a pessoa é administrador, profissional ou cliente.
+-- Dados pessoais vinculados a um estabelecimento ficam em pessoas.
+-- Os contextos funcionais são modelados em tabelas próprias.
+-- Login com Google e integração com Google Calendar são responsabilidades
+-- distintas e não compartilham credenciais.
 -- ============================================================================
 
 CREATE TABLE usuarios (
@@ -125,10 +128,14 @@ CREATE TABLE usuarios (
 -- definição inicial de senha. O token em texto puro nunca deve ser persistido:
 -- a aplicação armazena somente SHA-256 (64 caracteres hexadecimais).
 --
--- Fluxo esperado para administrador criado no cadastro de empresa:
+-- Fluxo esperado quando o onboarding cria uma NOVA identidade para o
+-- administrador:
 --   usuarios.senha_hash = NULL
 --   usuarios.ativo      = 0
 --   token válido        -> definição de senha -> usuarios.ativo = 1
+--
+-- Se uma identidade já existir, sua ativação global não deve ser alterada
+-- apenas por causa de um novo vínculo funcional.
 --
 -- Ao reenviar um convite, tokens anteriores ainda não utilizados devem ser
 -- revogados pela aplicação antes da criação do novo token.
@@ -158,11 +165,12 @@ CREATE TABLE usuario_tokens_ativacao (
 -- 3. PESSOAS
 -- ============================================================================
 --
--- pessoa é o cadastro pessoal dentro de uma empresa.
+-- pessoa é o cadastro pessoal operacional dentro de uma empresa.
+-- Não representa o administrador.
 -- Isso permite:
 -- - cliente sem login;
 -- - profissional sem login;
--- - usuário com login vinculado a uma pessoa;
+-- - identidade autenticada vinculada opcionalmente a cliente/profissional;
 -- - isolamento dos dados entre empresas.
 -- ============================================================================
 
@@ -190,6 +198,7 @@ CREATE TABLE pessoas (
         ON DELETE CASCADE,
 
     UNIQUE KEY uq_pessoas_empresa_cpf (empresa_id, cpf),
+    UNIQUE KEY uq_pessoas_id_empresa (id, empresa_id),
     KEY idx_pessoas_empresa_nome (empresa_id, nome_completo),
     KEY idx_pessoas_empresa_email (empresa_id, email),
     KEY idx_pessoas_ativo (empresa_id, ativo)
@@ -216,75 +225,70 @@ CREATE TABLE telefones_pessoa (
 
 
 -- ============================================================================
--- 4. VÍNCULO USUÁRIO x EMPRESA E PAPÉIS
+-- 4. ADMINISTRADORES
+-- ============================================================================
+--
+-- Administrador é um contexto funcional próprio.
+-- Não é cliente e não é profissional por consequência automática.
+--
+-- Nesta versão, cada empresa possui um administrador principal e uma identidade
+-- de administrador principal pode administrar somente uma empresa.
+--
+-- Os dados pessoais do administrador ficam nesta própria entidade, evitando
+-- reutilizar pessoas para um contexto administrativo.
+--
+-- Caso futuramente existam gerente, recepcionista, administrador secundário ou
+-- outros acessos administrativos, eles deverão ser modelados separadamente sem
+-- transformar administrador, profissional e cliente em um papel genérico.
 -- ============================================================================
 
-CREATE TABLE usuario_empresas (
+CREATE TABLE administradores (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    usuario_id BIGINT UNSIGNED NOT NULL,
     empresa_id BIGINT UNSIGNED NOT NULL,
-    pessoa_id BIGINT UNSIGNED NULL,
+    usuario_id BIGINT UNSIGNED NOT NULL,
+    nome_completo VARCHAR(160) NOT NULL,
+    cpf VARCHAR(14) NOT NULL,
+    email VARCHAR(190) NOT NULL,
+    telefone VARCHAR(30) NULL,
+    whatsapp VARCHAR(30) NULL,
     ativo TINYINT(1) NOT NULL DEFAULT 1,
     criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
 
-    CONSTRAINT fk_usuario_empresas_usuario
-        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT fk_usuario_empresas_empresa
+    CONSTRAINT fk_administradores_empresa
         FOREIGN KEY (empresa_id) REFERENCES empresas(id)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_usuario_empresas_pessoa
-        FOREIGN KEY (pessoa_id) REFERENCES pessoas(id)
-        ON DELETE SET NULL,
+    CONSTRAINT fk_administradores_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        ON DELETE RESTRICT,
 
-    UNIQUE KEY uq_usuario_empresa (usuario_id, empresa_id),
-    KEY idx_usuario_empresas_empresa (empresa_id, ativo)
-) ENGINE=InnoDB;
-
-
-CREATE TABLE papeis (
-    id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(60) NOT NULL,
-    slug VARCHAR(60) NOT NULL,
-    ativo TINYINT(1) NOT NULL DEFAULT 1,
-
-    UNIQUE KEY uq_papeis_nome (nome),
-    UNIQUE KEY uq_papeis_slug (slug)
-) ENGINE=InnoDB;
-
-
-INSERT INTO papeis (nome, slug) VALUES
-('Cliente', 'cliente'),
-('Profissional', 'profissional'),
-('Administrador', 'administrador');
-
-
-CREATE TABLE usuario_empresa_papeis (
-    usuario_empresa_id BIGINT UNSIGNED NOT NULL,
-    papel_id SMALLINT UNSIGNED NOT NULL,
-
-    PRIMARY KEY (usuario_empresa_id, papel_id),
-
-    CONSTRAINT fk_uep_usuario_empresa
-        FOREIGN KEY (usuario_empresa_id) REFERENCES usuario_empresas(id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT fk_uep_papel
-        FOREIGN KEY (papel_id) REFERENCES papeis(id)
-        ON DELETE RESTRICT
+    UNIQUE KEY uq_administradores_empresa (empresa_id),
+    UNIQUE KEY uq_administradores_usuario (usuario_id),
+    UNIQUE KEY uq_administradores_cpf (cpf),
+    UNIQUE KEY uq_administradores_email (email),
+    KEY idx_administradores_ativo (ativo)
 ) ENGINE=InnoDB;
 
 
 -- ============================================================================
--- 5. CLIENTES
+-- 5. CLIENTES / CONSUMIDORES
+-- ============================================================================
+--
+-- Cliente representa o contexto de consumo dentro de UMA empresa.
+-- A mesma identidade de acesso pode possuir cadastros de cliente em várias
+-- empresas, mas cada histórico permanece isolado pelo empresa_id.
+--
+-- usuario_id é opcional para permitir clientes cadastrados pelo estabelecimento
+-- que ainda não possuem login.
 -- ============================================================================
 
 CREATE TABLE clientes (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     empresa_id BIGINT UNSIGNED NOT NULL,
     pessoa_id BIGINT UNSIGNED NOT NULL,
+    usuario_id BIGINT UNSIGNED NULL,
     observacoes TEXT NULL,
     ativo TINYINT(1) NOT NULL DEFAULT 1,
     criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -295,11 +299,18 @@ CREATE TABLE clientes (
         FOREIGN KEY (empresa_id) REFERENCES empresas(id)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_clientes_pessoa
-        FOREIGN KEY (pessoa_id) REFERENCES pessoas(id)
+    CONSTRAINT fk_clientes_pessoa_empresa
+        FOREIGN KEY (pessoa_id, empresa_id)
+        REFERENCES pessoas(id, empresa_id)
         ON DELETE CASCADE,
 
+    CONSTRAINT fk_clientes_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        ON DELETE SET NULL,
+
     UNIQUE KEY uq_clientes_empresa_pessoa (empresa_id, pessoa_id),
+    UNIQUE KEY uq_clientes_empresa_usuario (empresa_id, usuario_id),
+    KEY idx_clientes_usuario (usuario_id),
     KEY idx_clientes_empresa_ativo (empresa_id, ativo)
 ) ENGINE=InnoDB;
 
@@ -307,11 +318,22 @@ CREATE TABLE clientes (
 -- ============================================================================
 -- 6. PROFISSIONAIS
 -- ============================================================================
+--
+-- Profissional representa quem presta os serviços.
+-- Pode existir sem conta de acesso.
+--
+-- Caso possua login, usuario_id vincula a identidade de autenticação ao cadastro
+-- profissional sem transformar o usuário em administrador ou cliente.
+--
+-- A mesma identidade pode, futuramente, possuir vínculo profissional com mais
+-- de uma empresa; o contexto continua sendo definido pelo empresa_id.
+-- ============================================================================
 
 CREATE TABLE profissionais (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     empresa_id BIGINT UNSIGNED NOT NULL,
     pessoa_id BIGINT UNSIGNED NOT NULL,
+    usuario_id BIGINT UNSIGNED NULL,
     cargo VARCHAR(120) NULL,
     descricao TEXT NULL,
     ativo TINYINT(1) NOT NULL DEFAULT 1,
@@ -323,17 +345,69 @@ CREATE TABLE profissionais (
         FOREIGN KEY (empresa_id) REFERENCES empresas(id)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_profissionais_pessoa
-        FOREIGN KEY (pessoa_id) REFERENCES pessoas(id)
+    CONSTRAINT fk_profissionais_pessoa_empresa
+        FOREIGN KEY (pessoa_id, empresa_id)
+        REFERENCES pessoas(id, empresa_id)
         ON DELETE CASCADE,
 
+    CONSTRAINT fk_profissionais_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        ON DELETE SET NULL,
+
     UNIQUE KEY uq_profissionais_empresa_pessoa (empresa_id, pessoa_id),
+    UNIQUE KEY uq_profissionais_empresa_usuario (empresa_id, usuario_id),
+    KEY idx_profissionais_usuario (usuario_id),
     KEY idx_profissionais_empresa_ativo (empresa_id, ativo)
 ) ENGINE=InnoDB;
 
 
 -- ============================================================================
--- 7. CATEGORIAS E SERVIÇOS
+-- 7. INTEGRAÇÕES DE CALENDÁRIO DO PROFISSIONAL
+-- ============================================================================
+--
+-- Login com Google NÃO é integração com Google Calendar.
+--
+-- A conta externa conectada ao calendário pode ser diferente do e-mail usado
+-- para autenticação no Salão Agenda.
+--
+-- O Salão Agenda permanece como fonte oficial dos agendamentos.
+-- Calendários externos são complementares e opcionais.
+--
+-- Tokens devem ser criptografados pela aplicação antes de serem persistidos.
+-- Nunca armazenar access_token ou refresh_token em texto puro.
+-- ============================================================================
+
+CREATE TABLE profissional_integracoes_calendario (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    profissional_id BIGINT UNSIGNED NOT NULL,
+    provedor VARCHAR(40) NOT NULL,
+    conta_externa_id VARCHAR(255) NULL,
+    conta_email VARCHAR(190) NULL,
+    calendario_externo_id VARCHAR(255) NULL,
+    access_token_criptografado MEDIUMTEXT NULL,
+    refresh_token_criptografado MEDIUMTEXT NULL,
+    token_expira_em DATETIME NULL,
+    escopos TEXT NULL,
+    sincronizacao_ativa TINYINT(1) NOT NULL DEFAULT 1,
+    ativo TINYINT(1) NOT NULL DEFAULT 1,
+    ultimo_sync_em DATETIME NULL,
+    criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_prof_integracoes_calendario_profissional
+        FOREIGN KEY (profissional_id) REFERENCES profissionais(id)
+        ON DELETE CASCADE,
+
+    UNIQUE KEY uq_prof_integracoes_calendario
+        (profissional_id, provedor),
+    KEY idx_prof_integracoes_calendario_ativo
+        (profissional_id, ativo, sincronizacao_ativa)
+) ENGINE=InnoDB;
+
+
+-- ============================================================================
+-- 8. CATEGORIAS E SERVIÇOS
 -- ============================================================================
 
 CREATE TABLE categorias_servicos (
@@ -408,7 +482,7 @@ CREATE TABLE profissional_servicos (
 
 
 -- ============================================================================
--- 8. HORÁRIOS DE FUNCIONAMENTO E DISPONIBILIDADE
+-- 9. HORÁRIOS DE FUNCIONAMENTO E DISPONIBILIDADE
 -- ============================================================================
 
 CREATE TABLE empresa_horarios (
@@ -482,7 +556,7 @@ CREATE TABLE profissional_bloqueios (
 
 
 -- ============================================================================
--- 9. AGENDAMENTOS
+-- 10. AGENDAMENTOS
 -- ============================================================================
 --
 -- O cabeçalho não possui servico_id nem profissional_id.
@@ -515,7 +589,6 @@ CREATE TABLE agendamentos (
     observacoes_cliente TEXT NULL,
     observacoes_internas TEXT NULL,
     valor_total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    google_event_id VARCHAR(255) NULL,
     criado_por_usuario_id BIGINT UNSIGNED NULL,
     criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -538,8 +611,7 @@ CREATE TABLE agendamentos (
 
     KEY idx_agendamentos_empresa_inicio (empresa_id, inicio),
     KEY idx_agendamentos_cliente_inicio (cliente_id, inicio),
-    KEY idx_agendamentos_status (empresa_id, status, inicio),
-    KEY idx_agendamentos_google_event (google_event_id)
+    KEY idx_agendamentos_status (empresa_id, status, inicio)
 ) ENGINE=InnoDB;
 
 
@@ -574,6 +646,51 @@ CREATE TABLE agendamento_servicos (
     KEY idx_agendamento_servicos_profissional_periodo
         (profissional_id, inicio, fim),
     KEY idx_agendamento_servicos_servico (servico_id)
+) ENGINE=InnoDB;
+
+
+-- ----------------------------------------------------------------------------
+-- 10.1 EVENTOS EM CALENDÁRIOS EXTERNOS
+-- ----------------------------------------------------------------------------
+--
+-- O vínculo do evento externo fica associado ao item de serviço/profissional,
+-- e não ao cabeçalho do agendamento. Isso permite que um agendamento possua
+-- múltiplos profissionais, cada um com sua própria integração de calendário.
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE agendamento_eventos_externos (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    agendamento_servico_id BIGINT UNSIGNED NOT NULL,
+    integracao_calendario_id BIGINT UNSIGNED NOT NULL,
+    evento_externo_id VARCHAR(255) NOT NULL,
+    status_sync ENUM(
+        'pendente',
+        'sincronizado',
+        'erro',
+        'removido'
+    ) NOT NULL DEFAULT 'pendente',
+    ultimo_erro VARCHAR(500) NULL,
+    sincronizado_em DATETIME NULL,
+    criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_ag_eventos_externos_servico
+        FOREIGN KEY (agendamento_servico_id)
+        REFERENCES agendamento_servicos(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_ag_eventos_externos_integracao
+        FOREIGN KEY (integracao_calendario_id)
+        REFERENCES profissional_integracoes_calendario(id)
+        ON DELETE CASCADE,
+
+    UNIQUE KEY uq_ag_evento_externo_integracao
+        (integracao_calendario_id, evento_externo_id),
+    UNIQUE KEY uq_ag_servico_integracao
+        (agendamento_servico_id, integracao_calendario_id),
+    KEY idx_ag_eventos_externos_status
+        (status_sync, sincronizado_em)
 ) ENGINE=InnoDB;
 
 
@@ -614,7 +731,7 @@ CREATE TABLE agendamento_historico (
 
 
 -- ============================================================================
--- 10. EXTENSÃO PARA PET SHOP
+-- 11. EXTENSÃO PARA PET SHOP
 -- ============================================================================
 
 CREATE TABLE pets (
@@ -683,16 +800,47 @@ CREATE TABLE agendamento_pets (
 --
 -- 4. O isolamento multiempresa deve ser aplicado também no código:
 --    toda consulta operacional deve ser limitada à empresa do contexto atual.
+--    O empresa_id recebido do cliente nunca deve ser aceito sem validar se a
+--    identidade autenticada possui acesso ao contexto solicitado.
 --
--- 5. Administradores criados durante o onboarding da empresa devem nascer
---    com senha_hash = NULL e ativo = 0. O acesso só é liberado após a definição
---    de senha por token de ativação válido, não utilizado, não revogado e
---    dentro do prazo de expiração. A aplicação deve invalidar o token no mesmo
---    commit que grava a senha e ativa o usuário.
+-- 5. usuarios representa identidade/autenticação. Administrador, profissional
+--    e cliente são entidades funcionais diferentes e não devem ser inferidos
+--    apenas pela existência de um usuário autenticado.
 --
--- 6. O token de ativação em texto puro deve existir apenas no link enviado ao
---    usuário. No banco, deve ser armazenado somente o hash SHA-256 do token.
+-- 6. O administrador principal é exclusivo:
+--       - uma empresa possui no máximo um administrador principal;
+--       - uma identidade de administrador principal pertence a uma empresa.
+--    A tabela administradores é a fonte desse vínculo e mantém os dados
+--    cadastrais próprios do administrador, sem reutilizar pessoas.
 --
--- 7. Módulo financeiro completo (pagamentos, comissões, caixa e despesas)
---    ficará para uma fase posterior.
+-- 7. Profissionais podem existir sem login. Quando houver usuario_id, o vínculo
+--    significa apenas que aquela identidade pode acessar o contexto daquele
+--    profissional.
+--
+-- 8. Clientes podem existir sem login. Uma identidade de consumidor pode estar
+--    vinculada como cliente a várias empresas, mas cada cadastro, histórico e
+--    agendamento permanece isolado pelo empresa_id.
+--
+-- 9. Login com Google e Google Calendar são integrações diferentes.
+--    usuarios.google_id serve somente para autenticação com Google.
+--    Credenciais de calendário ficam em profissional_integracoes_calendario.
+--
+-- 10. O Salão Agenda é a fonte oficial dos agendamentos. Google Calendar,
+--     Microsoft Outlook ou outros calendários são integrações complementares.
+--
+-- 11. Administradores criados durante o onboarding de uma NOVA identidade
+--     devem nascer com senha_hash = NULL e ativo = 0. O acesso só é liberado
+--     após a definição de senha por token válido, não utilizado, não revogado
+--     e dentro do prazo de expiração.
+--
+-- 12. O token de ativação em texto puro deve existir apenas no link enviado ao
+--     usuário. No banco deve ser armazenado somente o hash SHA-256 do token.
+--
+-- 13. Ao reenviar ativação, tokens anteriores válidos devem ser revogados.
+--
+-- 14. Tokens OAuth de calendários externos nunca devem ser armazenados em texto
+--     puro; a aplicação deve criptografá-los com chave mantida fora do banco.
+--
+-- 15. Módulo financeiro completo (pagamentos, comissões, caixa e despesas)
+--     ficará para uma fase posterior.
 -- ============================================================================

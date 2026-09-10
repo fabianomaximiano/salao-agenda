@@ -208,7 +208,180 @@ SALÃO AGENDA
 
 ---
 
-## 7. Nascimento da integração
+
+## 8. Identidades, papéis e contextos de acesso
+
+A plataforma deve separar claramente identidade de autenticação, contexto administrativo, profissional e consumidor.
+
+Essas entidades não devem ser tratadas como equivalentes, mesmo quando uma mesma pessoa física eventualmente possuir mais de um relacionamento com a plataforma.
+
+### 7.1 Identidade / autenticação
+
+`usuarios` representa exclusivamente a identidade utilizada para acessar o sistema.
+
+Responsabilidades:
+
+- armazenar e-mail e credenciais de autenticação;
+- permitir autenticação por senha;
+- permitir login com Google de forma opcional;
+- identificar quem está autenticado.
+
+A existência de um registro em `usuarios` não determina, por si só, uma função operacional dentro da plataforma.
+
+**Autenticação e função operacional são responsabilidades distintas.**
+
+O identificador utilizado para login também não deve ser confundido com credenciais de integrações externas, como Google Calendar.
+
+### 7.2 Administrador
+
+O administrador representa o responsável pela gestão de um estabelecimento.
+
+Responsabilidades:
+
+- administrar os dados da empresa;
+- configurar serviços;
+- cadastrar e gerenciar profissionais;
+- configurar horários e disponibilidade;
+- acompanhar clientes e agendamentos;
+- acessar funções administrativas da empresa.
+
+O administrador possui contexto administrativo próprio e sua relação com a empresa deve ser explícita.
+
+O administrador principal não deve ser tratado automaticamente como cliente ou profissional.
+
+A relação administrativa com a empresa deve permanecer isolada das relações de consumo de serviços e de prestação profissional.
+
+O modelo definitivo do vínculo do administrador principal com a empresa será refletido no banco de dados antes da implementação do serviço de criação de empresas.
+
+### 7.3 Profissional
+
+O profissional representa quem executa os serviços oferecidos pelo estabelecimento.
+
+Responsabilidades:
+
+- prestar serviços;
+- possuir serviços associados;
+- possuir horários de trabalho;
+- possuir períodos de bloqueio;
+- participar dos agendamentos;
+- possuir agenda operacional própria.
+
+Um profissional pode existir sem possuir uma conta de acesso ao sistema.
+
+Caso possua login, sua identidade de autenticação deve permanecer separada do seu cadastro profissional.
+
+O profissional não deve ser tratado como administrador apenas por possuir acesso ao sistema.
+
+A integração com Google Calendar será opcional e independente da autenticação utilizada no Salão Agenda.
+
+### 7.4 Cliente / consumidor
+
+O cliente representa quem consome os serviços oferecidos pelos estabelecimentos.
+
+Um mesmo consumidor pode utilizar serviços de diversas empresas da plataforma.
+
+```text
+CLIENTE
+│
+├── Barbearia A
+├── Podologia B
+└── Pet Shop C
+```
+
+Cada relacionamento deve permanecer isolado dentro do contexto da respectiva empresa. Ao acessar o contexto da Barbearia A, o cliente visualizará somente dados relacionados à Barbearia A.
+
+Históricos, agendamentos, observações e demais informações operacionais de outros estabelecimentos não devem ser misturados.
+
+A interface poderá futuramente permitir a troca de estabelecimento/contexto, de maneira semelhante à troca de contas em outras plataformas, mantendo cada contexto isolado.
+
+### 7.5 Contexto ativo
+
+Toda operação da plataforma deve possuir um contexto claramente definido.
+
+```text
+usuario_id = 50
+contexto = cliente
+empresa_id = 10
+```
+
+é diferente de:
+
+```text
+usuario_id = 50
+contexto = administrador
+empresa_id = 3
+```
+
+O `empresa_id` do contexto ativo deve ser utilizado para limitar as consultas operacionais.
+
+Nunca deve ser permitido que a simples identificação do usuário resulte em consultas que misturem dados de diferentes estabelecimentos.
+
+Como regra de arquitetura, consultas operacionais devem ser ancoradas no contexto da empresa e utilizar índices adequados por `empresa_id` sempre que aplicável.
+
+### 7.6 Google Calendar e autenticação Google
+
+Login com Google e integração com Google Calendar são responsabilidades diferentes.
+
+**Login com Google:**
+
+- autentica uma identidade no Salão Agenda;
+- é opcional;
+- não determina qual calendário será utilizado.
+
+**Google Calendar:**
+
+- é uma integração externa opcional;
+- pode utilizar uma conta Google diferente do e-mail utilizado no Salão Agenda;
+- pode ser conectado individualmente por um profissional;
+- não é requisito para utilização da plataforma.
+
+Um profissional sem conta Google deve conseguir utilizar normalmente todos os recursos internos de agenda, disponibilidade, bloqueios e agendamentos.
+
+O Salão Agenda permanece como fonte oficial dos agendamentos.
+
+```text
+SALÃO AGENDA
+    ↓
+fonte oficial dos agendamentos
+
+GOOGLE CALENDAR
+    ↓
+integração complementar e opcional
+```
+
+Credenciais e autorizações de calendário não devem ser armazenadas como se fossem dados de autenticação do usuário.
+
+Essa separação permitirá futuramente integrar outros provedores de calendário, como Microsoft Outlook, sem alterar as entidades principais da plataforma.
+
+### 7.7 Regra conceitual
+
+```text
+IDENTIDADE / AUTENTICAÇÃO
+        ↓
+      usuarios
+
+ADMINISTRADOR
+        ↓
+gestão da empresa
+
+PROFISSIONAL
+        ↓
+prestação de serviços e agenda
+
+CLIENTE / CONSUMIDOR
+        ↓
+consumo de serviços em uma ou mais empresas
+
+INTEGRAÇÕES EXTERNAS
+        ↓
+Google Calendar / futuros provedores
+```
+
+**Administrador, profissional e cliente são contextos funcionais distintos e não devem ser tratados como equivalentes.**
+
+---
+
+## 8. Nascimento da integração
 
 O site e a empresa dentro do Salão Agenda deverão nascer vinculados.
 
@@ -254,14 +427,14 @@ da empresa.
 
 ---
 
-## 8. Fluxo de dados entre WordPress e Salão Agenda
+## 9. Fluxo de dados entre WordPress e Salão Agenda
 
 A integração possui fluxo de informações nos dois sentidos.
 
 Cada sistema possui responsabilidades diferentes e deve ser considerado
 a fonte oficial dos dados pertencentes ao seu domínio.
 
-### 8.1 Dados institucionais
+### 9.1 Dados institucionais
 
 Os dados institucionais da empresa são cadastrados no WordPress e podem
 ser reutilizados pelo próprio site e pelo Salão Agenda.
@@ -316,7 +489,7 @@ Agenda:
 agenda.josebarber.com.br
 ```
 
-### 8.2 Dados operacionais
+### 9.2 Dados operacionais
 
 O Salão Agenda é a fonte oficial dos dados relacionados à operação e ao
 agendamento da empresa.
@@ -403,7 +576,7 @@ O mesmo princípio vale para profissionais.
 Se um profissional for adicionado, removido ou desativado na Agenda,
 essa alteração deverá ser refletida no site.
 
-### 8.3 Combos, combinações e recursos futuros
+### 9.3 Combos, combinações e recursos futuros
 
 A mesma regra utilizada para serviços e profissionais será aplicada a
 combos, combinações, pacotes e outros recursos operacionais que venham
@@ -436,7 +609,7 @@ O WordPress apenas apresenta o recurso cadastrado na Agenda.
 
 Não deverá existir outro cadastro manual do mesmo combo no site.
 
-### 8.4 Regra de origem dos dados
+### 9.4 Regra de origem dos dados
 
 A responsabilidade fica dividida da seguinte forma:
 
@@ -478,7 +651,7 @@ Não deverá existir cadastro manual duplicado entre os dois sistemas.
 
 ---
 
-## 9. Responsabilidades do WordPress
+## 10. Responsabilidades do WordPress
 
 O WordPress será responsável principalmente pela presença digital da
 empresa.
@@ -515,7 +688,7 @@ WordPress
 
 ---
 
-## 10. Responsabilidades do Salão Agenda
+## 11. Responsabilidades do Salão Agenda
 
 O Salão Agenda será responsável pela operação do negócio.
 
@@ -541,7 +714,7 @@ O Salão Agenda será a fonte oficial dessas informações.
 
 ---
 
-## 11. Painel administrativo do WordPress
+## 12. Painel administrativo do WordPress
 
 O painel WordPress deverá possuir uma área específica para configuração
 da empresa e da integração.
@@ -587,7 +760,7 @@ posteriormente.
 
 ---
 
-## 12. Painel do Salão Agenda
+## 13. Painel do Salão Agenda
 
 O painel operacional será separado do painel administrativo do WordPress.
 
@@ -625,7 +798,7 @@ Apesar de serem sistemas separados, ambos estarão vinculados à mesma empresa.
 
 ---
 
-## 13. Comunicação entre os sistemas
+## 14. Comunicação entre os sistemas
 
 WordPress e Salão Agenda não deverão acessar diretamente o banco de dados
 um do outro.
@@ -659,7 +832,7 @@ O contrato definitivo da API será definido posteriormente.
 
 ---
 
-## 14. Identificação da empresa na integração
+## 15. Identificação da empresa na integração
 
 Toda comunicação entre o site e a Agenda deverá estar vinculada à empresa
 correta.
@@ -686,7 +859,7 @@ dados operacionais da empresa.
 
 ---
 
-## 15. Cadastro e provisionamento de empresas
+## 16. Cadastro e provisionamento de empresas
 
 O cadastro de empresas não deverá permanecer como uma página pública
 aberta em produção.
@@ -719,7 +892,7 @@ Não deverá existir cadastro público irrestrito de empresas.
 
 ---
 
-## 16. Princípios da integração
+## 17. Princípios da integração
 
 A arquitetura deverá seguir os seguintes princípios:
 
@@ -747,9 +920,21 @@ A arquitetura deverá seguir os seguintes princípios:
 
 12. O `empresa_id` será o vínculo interno da empresa com o Salão Agenda.
 
+13. Identidade de autenticação não determina função operacional.
+
+14. Administrador, profissional e cliente são contextos funcionais distintos.
+
+15. Um cliente pode possuir relacionamentos com diversas empresas, sem mistura de históricos ou dados operacionais entre elas.
+
+16. Toda consulta operacional deverá respeitar a empresa do contexto ativo.
+
+17. Login com Google e integração com Google Calendar são responsabilidades distintas.
+
+18. O Salão Agenda é a fonte oficial dos agendamentos; calendários externos são integrações complementares e opcionais.
+
 ---
 
-## 17. Questões ainda em aberto
+## 18. Questões ainda em aberto
 
 Os seguintes assuntos ainda precisam ser definidos antes de sua
 implementação definitiva:
@@ -765,7 +950,9 @@ implementação definitiva:
 - estratégia de cache dos dados da API;
 - comportamento do site caso a API esteja temporariamente indisponível;
 - área MASTER/SUPERADMIN;
-- criação do primeiro administrador da empresa;
+- estrutura definitiva do vínculo exclusivo do administrador principal com a empresa;
+- fluxo técnico de ativação e recuperação de acesso administrativo;
+- modelo de armazenamento e renovação das autorizações de integrações externas;
 - cobrança;
 - inadimplência;
 - suspensão;
@@ -779,7 +966,7 @@ ser tratados como funcionalidades já definidas.
 
 ---
 
-## 18. Resumo da arquitetura
+## 19. Resumo da arquitetura
 
 ```text
                     EMPRESA
