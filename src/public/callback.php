@@ -5,7 +5,7 @@ require_once __DIR__ . '/../includes/db.php';
 // Pegando as credenciais do .env ou ambiente do Docker
 $clientId     = getenv('GOOGLE_CLIENT_ID');
 $clientSecret = getenv('GOOGLE_CLIENT_SECRET');
-$redirectUri  = getenv('GOOGLE_REDIRECT_URI') ?: 'http://localhost:8080/callback.php';
+$redirectUri  = getenv('GOOGLE_REDIRECT_URI') ?: 'http://localhost:8096/callback.php';
 
 $action = $_GET['action'] ?? '';
 
