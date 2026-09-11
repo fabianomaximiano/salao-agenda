@@ -4,6 +4,14 @@ declare(strict_types=1);
 
 session_start();
 
+if (
+    empty($_SESSION['csrf_cadastro_empresa'])
+    || !is_string($_SESSION['csrf_cadastro_empresa'])
+) {
+    $_SESSION['csrf_cadastro_empresa'] =
+        bin2hex(random_bytes(32));
+}
+
 require_once __DIR__ . '/../includes/db.php';
 
 $pdo = getDB();
@@ -174,9 +182,18 @@ unset(
                                 <form
                                     id="cadastroEmpresaForm"
                                     method="post"
-                                    action="cadastro-empresa.php"
+                                    action="api/empresas.php"
                                     novalidate
                                 >
+                                    <input
+                                        type="hidden"
+                                        name="csrf_token"
+                                        value="<?= htmlspecialchars(
+                                            $_SESSION['csrf_cadastro_empresa'],
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>"
+                                    >
 
                                     <!-- EMPRESA -->
                                     <section class="form-section">
@@ -707,9 +724,9 @@ unset(
                                             <strong>Ativação do acesso</strong>
 
                                             <p class="mb-0 mt-1">
-                                                O administrador receberá um e-mail
-                                                com um link para criar sua senha e
-                                                ativar o acesso ao Salão Agenda.
+                                                O administrador receberá um código de verificação
+                                                    por e-mail. Após confirmar o código,
+                                                    receberá um link seguro para criar sua senha.
                                             </p>
                                         </div>
 
