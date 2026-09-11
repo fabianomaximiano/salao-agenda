@@ -59,6 +59,78 @@ $stmt->execute([
 ]);
 $estado = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
+$timezoneEmpresa = 'America/Sao_Paulo';
+
+$stmtTimezone = $pdo->prepare(
+    'SELECT timezone
+     FROM empresas
+     WHERE id = :empresa_id
+     LIMIT 1'
+);
+$stmtTimezone->execute([':empresa_id' => $empresaId]);
+
+$timezoneBanco = $stmtTimezone->fetchColumn();
+
+if (is_string($timezoneBanco) && $timezoneBanco !== '') {
+    $timezoneEmpresa = $timezoneBanco;
+}
+
+try {
+    $timezone = new DateTimeZone($timezoneEmpresa);
+} catch (Throwable $e) {
+    $timezone = new DateTimeZone('America/Sao_Paulo');
+}
+
+$inicioHoje = new DateTimeImmutable('today', $timezone);
+$fimHoje = $inicioHoje->modify('+1 day');
+
+$stmtEstatisticas = $pdo->prepare(
+    "SELECT
+        (
+            SELECT COUNT(*)
+            FROM agendamentos a
+            WHERE a.empresa_id = :empresa_agendamentos
+              AND a.inicio >= :inicio_hoje
+              AND a.inicio < :fim_hoje
+              AND a.status <> 'cancelado'
+        ) AS agendamentos_hoje,
+        (
+            SELECT COUNT(*)
+            FROM clientes c
+            WHERE c.empresa_id = :empresa_clientes
+              AND c.ativo = 1
+        ) AS clientes,
+        (
+            SELECT COUNT(*)
+            FROM profissionais p
+            WHERE p.empresa_id = :empresa_profissionais_stats
+              AND p.ativo = 1
+        ) AS profissionais,
+        (
+            SELECT COUNT(*)
+            FROM servicos s
+            WHERE s.empresa_id = :empresa_servicos_stats
+              AND s.ativo = 1
+        ) AS servicos"
+);
+
+$stmtEstatisticas->execute([
+    ':empresa_agendamentos' => $empresaId,
+    ':inicio_hoje' => $inicioHoje->format('Y-m-d H:i:s'),
+    ':fim_hoje' => $fimHoje->format('Y-m-d H:i:s'),
+    ':empresa_clientes' => $empresaId,
+    ':empresa_profissionais_stats' => $empresaId,
+    ':empresa_servicos_stats' => $empresaId,
+]);
+
+$estatisticas = $stmtEstatisticas->fetch(PDO::FETCH_ASSOC) ?: [];
+
+$totalAgendamentosHoje = (int) ($estatisticas['agendamentos_hoje'] ?? 0);
+$totalClientes = (int) ($estatisticas['clientes'] ?? 0);
+$totalProfissionais = (int) ($estatisticas['profissionais'] ?? 0);
+$totalServicos = (int) ($estatisticas['servicos'] ?? 0);
+
+
 $etapas = [
     ['titulo' => 'Conta criada', 'concluida' => true, 'url' => null],
     ['titulo' => 'E-mail confirmado', 'concluida' => true, 'url' => null],
@@ -95,7 +167,7 @@ $concluidas = count(array_filter($etapas, static fn (array $etapa): bool => $eta
 $percentual = $totalEtapas > 0 ? (int) round(($concluidas / $totalEtapas) * 100) : 0;
 
 $pageTitle = 'Dashboard';
-$pageCss = 'dashboard.css';
+$pageCss = 'dashboard.css?v=20260911-3';
 $pageJs = 'dashboard.js';
 
 require __DIR__ . '/partials/header.php';
@@ -153,25 +225,27 @@ require __DIR__ . '/partials/navbar.php';
                         $conteudo = $etapa['concluida'] ? '✓' : '○';
                         ?>
 
-                        <?php if (is_string($etapa['url']) && $etapa['url'] !== ''): ?>
-                            <a
-                                href="<?= htmlspecialchars($etapa['url'], ENT_QUOTES, 'UTF-8') ?>"
-                                class="dashboard-onboarding-item <?= $classe ?>"
-                            >
-                                <span class="dashboard-onboarding-status" aria-hidden="true">
-                                    <?= $conteudo ?>
-                                </span>
-                                <span><?= htmlspecialchars($etapa['titulo'], ENT_QUOTES, 'UTF-8') ?></span>
-                                <span class="dashboard-onboarding-arrow" aria-hidden="true">›</span>
-                            </a>
-                        <?php else: ?>
-                            <div class="dashboard-onboarding-item <?= $classe ?> is-static">
-                                <span class="dashboard-onboarding-status" aria-hidden="true">
-                                    <?= $conteudo ?>
-                                </span>
-                                <span><?= htmlspecialchars($etapa['titulo'], ENT_QUOTES, 'UTF-8') ?></span>
-                            </div>
-                        <?php endif; ?>
+                        <div class="dashboard-onboarding-row">
+                            <?php if (is_string($etapa['url']) && $etapa['url'] !== ''): ?>
+                                <a
+                                    href="<?= htmlspecialchars($etapa['url'], ENT_QUOTES, 'UTF-8') ?>"
+                                    class="dashboard-onboarding-item <?= $classe ?>"
+                                >
+                                    <span class="dashboard-onboarding-status" aria-hidden="true">
+                                        <?= $conteudo ?>
+                                    </span>
+                                    <span><?= htmlspecialchars($etapa['titulo'], ENT_QUOTES, 'UTF-8') ?></span>
+                                    <span class="dashboard-onboarding-arrow" aria-hidden="true">›</span>
+                                </a>
+                            <?php else: ?>
+                                <div class="dashboard-onboarding-item <?= $classe ?> is-static">
+                                    <span class="dashboard-onboarding-status" aria-hidden="true">
+                                        <?= $conteudo ?>
+                                    </span>
+                                    <span><?= htmlspecialchars($etapa['titulo'], ENT_QUOTES, 'UTF-8') ?></span>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     <?php endforeach; ?>
                 </div>
 
@@ -187,28 +261,28 @@ require __DIR__ . '/partials/navbar.php';
         <div class="col-12 col-sm-6 col-xl-3 mb-4">
             <div class="app-stat-card">
                 <p class="app-stat-label">Agendamentos hoje</p>
-                <p class="app-stat-value">0</p>
+                <p class="app-stat-value"><?= $totalAgendamentosHoje ?></p>
             </div>
         </div>
 
         <div class="col-12 col-sm-6 col-xl-3 mb-4">
             <div class="app-stat-card">
                 <p class="app-stat-label">Clientes</p>
-                <p class="app-stat-value">0</p>
+                <p class="app-stat-value"><?= $totalClientes ?></p>
             </div>
         </div>
 
         <div class="col-12 col-sm-6 col-xl-3 mb-4">
             <div class="app-stat-card">
                 <p class="app-stat-label">Profissionais</p>
-                <p class="app-stat-value">0</p>
+                <p class="app-stat-value"><?= $totalProfissionais ?></p>
             </div>
         </div>
 
         <div class="col-12 col-sm-6 col-xl-3 mb-4">
             <div class="app-stat-card">
                 <p class="app-stat-label">Serviços</p>
-                <p class="app-stat-value">0</p>
+                <p class="app-stat-value"><?= $totalServicos ?></p>
             </div>
         </div>
     </div>

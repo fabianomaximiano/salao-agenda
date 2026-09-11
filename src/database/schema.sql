@@ -119,13 +119,13 @@ INSERT INTO segmentos (nome, slug) VALUES
 
 
 -- ----------------------------------------------------------------------------
--- 1.2 CATÁLOGO DE SERVIÇOS BÁSICOS POR SEGMENTO
+-- 1.2 CATALOGO DE SERVICOS BASICOS POR SEGMENTO
 -- ----------------------------------------------------------------------------
 --
--- servicos_base contém apenas sugestões iniciais para acelerar a configuração.
--- O catálogo NÃO representa os serviços operacionais de uma empresa.
--- Ao selecionar uma sugestão, a aplicação cria um registro real em servicos.
--- Combos, pacotes, promoções e personalizações são responsabilidade da empresa.
+-- servicos_base contem apenas sugestoes iniciais.
+-- Ao selecionar uma sugestao, a aplicacao cria um registro real em servicos.
+-- Os nomes usam hexadecimal UTF-8 para serem seguros em importacoes via
+-- Windows PowerShell.
 -- ----------------------------------------------------------------------------
 
 CREATE TABLE servicos_base (
@@ -161,58 +161,50 @@ SELECT
     dados.ordem
 FROM segmentos s
 INNER JOIN (
-    SELECT 'unhas' AS slug, 'Manicure' AS nome, 45 AS duracao_sugerida, 10 AS ordem
-    UNION ALL SELECT 'unhas', 'Pedicure', 45, 20
-    UNION ALL SELECT 'unhas', 'Manicure e Pedicure', 90, 30
-    UNION ALL SELECT 'unhas', 'Esmaltação', 30, 40
-    UNION ALL SELECT 'unhas', 'Remoção de esmalte em gel', 30, 50
-
-    UNION ALL SELECT 'cabelos', 'Corte feminino', 60, 10
-    UNION ALL SELECT 'cabelos', 'Corte masculino', 45, 20
-    UNION ALL SELECT 'cabelos', 'Escova', 60, 30
-    UNION ALL SELECT 'cabelos', 'Hidratação', 60, 40
-    UNION ALL SELECT 'cabelos', 'Coloração', 120, 50
-    UNION ALL SELECT 'cabelos', 'Progressiva', 180, 60
-
-    UNION ALL SELECT 'barbearia', 'Corte masculino', 45, 10
-    UNION ALL SELECT 'barbearia', 'Corte infantil', 45, 20
-    UNION ALL SELECT 'barbearia', 'Barba', 30, 30
-    UNION ALL SELECT 'barbearia', 'Acabamento / pezinho', 20, 40
-    UNION ALL SELECT 'barbearia', 'Sobrancelha', 20, 50
-    UNION ALL SELECT 'barbearia', 'Pigmentação de barba', 45, 60
-
-    UNION ALL SELECT 'depilacao', 'Depilação de axilas', 20, 10
-    UNION ALL SELECT 'depilacao', 'Depilação de buço', 15, 20
-    UNION ALL SELECT 'depilacao', 'Depilação de meia perna', 30, 30
-    UNION ALL SELECT 'depilacao', 'Depilação de perna inteira', 45, 40
-    UNION ALL SELECT 'depilacao', 'Depilação de virilha', 30, 50
-    UNION ALL SELECT 'depilacao', 'Depilação facial', 30, 60
-
-    UNION ALL SELECT 'maquiagem', 'Maquiagem social', 60, 10
-    UNION ALL SELECT 'maquiagem', 'Maquiagem para festa', 75, 20
-    UNION ALL SELECT 'maquiagem', 'Maquiagem de noiva', 120, 30
-
-    UNION ALL SELECT 'sobrancelhas', 'Design de sobrancelhas', 30, 10
-    UNION ALL SELECT 'sobrancelhas', 'Design com henna', 45, 20
-    UNION ALL SELECT 'sobrancelhas', 'Manutenção de sobrancelhas', 20, 30
-
-    UNION ALL SELECT 'massagem-estetica', 'Massagem relaxante', 60, 10
-    UNION ALL SELECT 'massagem-estetica', 'Drenagem linfática', 60, 20
-    UNION ALL SELECT 'massagem-estetica', 'Massagem modeladora', 60, 30
-    UNION ALL SELECT 'massagem-estetica', 'Limpeza de pele', 90, 40
-    UNION ALL SELECT 'massagem-estetica', 'Hidratação facial', 60, 50
-
-    UNION ALL SELECT 'podologia', 'Avaliação podológica', 30, 10
-    UNION ALL SELECT 'podologia', 'Podologia preventiva', 60, 20
-    UNION ALL SELECT 'podologia', 'Corte técnico de unhas', 45, 30
-    UNION ALL SELECT 'podologia', 'Tratamento de calosidades', 60, 40
-    UNION ALL SELECT 'podologia', 'Tratamento de unha encravada', 60, 50
-
-    UNION ALL SELECT 'pet-shop', 'Banho', 60, 10
-    UNION ALL SELECT 'pet-shop', 'Tosa higiênica', 60, 20
-    UNION ALL SELECT 'pet-shop', 'Tosa completa', 90, 30
-    UNION ALL SELECT 'pet-shop', 'Corte de unhas', 20, 40
-    UNION ALL SELECT 'pet-shop', 'Limpeza de ouvidos', 20, 50
+    SELECT 'unhas' AS slug, CONVERT(0x4D616E6963757265 USING utf8mb4) AS nome, 45 AS duracao_sugerida, 10 AS ordem
+    UNION ALL SELECT 'unhas', CONVERT(0x5065646963757265 USING utf8mb4), 45, 20
+    UNION ALL SELECT 'unhas', CONVERT(0x4D616E69637572652065205065646963757265 USING utf8mb4), 90, 30
+    UNION ALL SELECT 'unhas', CONVERT(0x45736D616C7461C3A7C3A36F USING utf8mb4), 30, 40
+    UNION ALL SELECT 'unhas', CONVERT(0x52656D6FC3A7C3A36F2064652065736D616C746520656D2067656C USING utf8mb4), 30, 50
+    UNION ALL SELECT 'cabelos', CONVERT(0x436F7274652066656D696E696E6F USING utf8mb4), 60, 10
+    UNION ALL SELECT 'cabelos', CONVERT(0x436F727465206D617363756C696E6F USING utf8mb4), 45, 20
+    UNION ALL SELECT 'cabelos', CONVERT(0x4573636F7661 USING utf8mb4), 60, 30
+    UNION ALL SELECT 'cabelos', CONVERT(0x48696472617461C3A7C3A36F USING utf8mb4), 60, 40
+    UNION ALL SELECT 'cabelos', CONVERT(0x436F6C6F7261C3A7C3A36F USING utf8mb4), 120, 50
+    UNION ALL SELECT 'cabelos', CONVERT(0x50726F6772657373697661 USING utf8mb4), 180, 60
+    UNION ALL SELECT 'barbearia', CONVERT(0x436F727465206D617363756C696E6F USING utf8mb4), 45, 10
+    UNION ALL SELECT 'barbearia', CONVERT(0x436F72746520696E66616E74696C USING utf8mb4), 45, 20
+    UNION ALL SELECT 'barbearia', CONVERT(0x4261726261 USING utf8mb4), 30, 30
+    UNION ALL SELECT 'barbearia', CONVERT(0x41636162616D656E746F202F2070657A696E686F USING utf8mb4), 20, 40
+    UNION ALL SELECT 'barbearia', CONVERT(0x536F6272616E63656C6861 USING utf8mb4), 20, 50
+    UNION ALL SELECT 'barbearia', CONVERT(0x5069676D656E7461C3A7C3A36F206465206261726261 USING utf8mb4), 45, 60
+    UNION ALL SELECT 'depilacao', CONVERT(0x446570696C61C3A7C3A36F206465206178696C6173 USING utf8mb4), 20, 10
+    UNION ALL SELECT 'depilacao', CONVERT(0x446570696C61C3A7C3A36F206465206275C3A76F USING utf8mb4), 15, 20
+    UNION ALL SELECT 'depilacao', CONVERT(0x446570696C61C3A7C3A36F206465206D656961207065726E61 USING utf8mb4), 30, 30
+    UNION ALL SELECT 'depilacao', CONVERT(0x446570696C61C3A7C3A36F206465207065726E6120696E7465697261 USING utf8mb4), 45, 40
+    UNION ALL SELECT 'depilacao', CONVERT(0x446570696C61C3A7C3A36F20646520766972696C6861 USING utf8mb4), 30, 50
+    UNION ALL SELECT 'depilacao', CONVERT(0x446570696C61C3A7C3A36F2066616369616C USING utf8mb4), 30, 60
+    UNION ALL SELECT 'maquiagem', CONVERT(0x4D617175696167656D20736F6369616C USING utf8mb4), 60, 10
+    UNION ALL SELECT 'maquiagem', CONVERT(0x4D617175696167656D2070617261206665737461 USING utf8mb4), 75, 20
+    UNION ALL SELECT 'maquiagem', CONVERT(0x4D617175696167656D206465206E6F697661 USING utf8mb4), 120, 30
+    UNION ALL SELECT 'sobrancelhas', CONVERT(0x44657369676E20646520736F6272616E63656C686173 USING utf8mb4), 30, 10
+    UNION ALL SELECT 'sobrancelhas', CONVERT(0x44657369676E20636F6D2068656E6E61 USING utf8mb4), 45, 20
+    UNION ALL SELECT 'sobrancelhas', CONVERT(0x4D616E7574656EC3A7C3A36F20646520736F6272616E63656C686173 USING utf8mb4), 20, 30
+    UNION ALL SELECT 'massagem-estetica', CONVERT(0x4D6173736167656D2072656C6178616E7465 USING utf8mb4), 60, 10
+    UNION ALL SELECT 'massagem-estetica', CONVERT(0x4472656E6167656D206C696E66C3A174696361 USING utf8mb4), 60, 20
+    UNION ALL SELECT 'massagem-estetica', CONVERT(0x4D6173736167656D206D6F64656C61646F7261 USING utf8mb4), 60, 30
+    UNION ALL SELECT 'massagem-estetica', CONVERT(0x4C696D70657A612064652070656C65 USING utf8mb4), 90, 40
+    UNION ALL SELECT 'massagem-estetica', CONVERT(0x48696472617461C3A7C3A36F2066616369616C USING utf8mb4), 60, 50
+    UNION ALL SELECT 'podologia', CONVERT(0x4176616C6961C3A7C3A36F20706F646F6CC3B367696361 USING utf8mb4), 30, 10
+    UNION ALL SELECT 'podologia', CONVERT(0x506F646F6C6F6769612070726576656E74697661 USING utf8mb4), 60, 20
+    UNION ALL SELECT 'podologia', CONVERT(0x436F7274652074C3A9636E69636F20646520756E686173 USING utf8mb4), 45, 30
+    UNION ALL SELECT 'podologia', CONVERT(0x54726174616D656E746F2064652063616C6F73696461646573 USING utf8mb4), 60, 40
+    UNION ALL SELECT 'podologia', CONVERT(0x54726174616D656E746F20646520756E686120656E63726176616461 USING utf8mb4), 60, 50
+    UNION ALL SELECT 'pet-shop', CONVERT(0x42616E686F USING utf8mb4), 60, 10
+    UNION ALL SELECT 'pet-shop', CONVERT(0x546F73612068696769C3AA6E696361 USING utf8mb4), 60, 20
+    UNION ALL SELECT 'pet-shop', CONVERT(0x546F736120636F6D706C657461 USING utf8mb4), 90, 30
+    UNION ALL SELECT 'pet-shop', CONVERT(0x436F72746520646520756E686173 USING utf8mb4), 20, 40
+    UNION ALL SELECT 'pet-shop', CONVERT(0x4C696D70657A61206465206F757669646F73 USING utf8mb4), 20, 50
 ) AS dados
     ON dados.slug = s.slug;
 
