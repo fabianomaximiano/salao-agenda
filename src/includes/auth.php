@@ -11,7 +11,7 @@ function usuarioLogado(): bool
     return isset(
         $_SESSION['user_id'],
         $_SESSION['empresa_id'],
-        $_SESSION['papel']
+        $_SESSION['contexto']
     );
 }
 
@@ -27,7 +27,7 @@ function exigirAdministrador(): void
 {
     exigirLogin();
 
-    if ($_SESSION['papel'] !== 'administrador') {
+    if ($_SESSION['contexto'] !== 'administrador') {
         http_response_code(403);
 
         exit('Acesso negado.');

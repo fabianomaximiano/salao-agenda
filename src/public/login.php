@@ -35,42 +35,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sql = "
                 SELECT
                     u.id AS usuario_id,
-                    u.email,
+                    u.email AS usuario_email,
                     u.senha_hash,
                     u.ativo AS usuario_ativo,
 
-                    ue.id AS usuario_empresa_id,
-                    ue.empresa_id,
-                    ue.pessoa_id,
-                    ue.ativo AS vinculo_ativo,
+                    a.id AS administrador_id,
+                    a.empresa_id,
+                    a.nome_completo,
+                    a.email AS administrador_email,
+                    a.ativo AS administrador_ativo,
 
                     e.nome_fantasia AS empresa_nome,
-                    e.ativo AS empresa_ativa,
-
-                    p.nome_completo AS pessoa_nome,
-
-                    pa.slug AS papel_slug,
-                    pa.nome AS papel_nome
+                    e.ativo AS empresa_ativa
 
                 FROM usuarios u
 
-                INNER JOIN usuario_empresas ue
-                    ON ue.usuario_id = u.id
+                INNER JOIN administradores a
+                    ON a.usuario_id = u.id
 
                 INNER JOIN empresas e
-                    ON e.id = ue.empresa_id
-
-                LEFT JOIN pessoas p
-                    ON p.id = ue.pessoa_id
-
-                INNER JOIN usuario_empresa_papeis uep
-                    ON uep.usuario_empresa_id = ue.id
-
-                INNER JOIN papeis pa
-                    ON pa.id = uep.papel_id
+                    ON e.id = a.empresa_id
 
                 WHERE u.email = :email
-                  AND pa.slug = 'administrador'
 
                 LIMIT 1
             ";
@@ -89,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             } elseif (
                 !(bool) $usuario['usuario_ativo']
-                || !(bool) $usuario['vinculo_ativo']
+                || !(bool) $usuario['administrador_ativo']
                 || !(bool) $usuario['empresa_ativa']
             ) {
 
@@ -113,11 +99,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     (int) $usuario['usuario_id'];
 
                 $_SESSION['user_email'] =
-                    $usuario['email'];
+                    $usuario['usuario_email'];
 
                 $_SESSION['user_name'] =
-                    $usuario['pessoa_nome']
-                    ?: $usuario['email'];
+                    $usuario['nome_completo'];
 
                 $_SESSION['empresa_id'] =
                     (int) $usuario['empresa_id'];
@@ -125,11 +110,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['empresa_nome'] =
                     $usuario['empresa_nome'];
 
-                $_SESSION['papel'] =
-                    $usuario['papel_slug'];
+                $_SESSION['administrador_id'] =
+                    (int) $usuario['administrador_id'];
 
-                $_SESSION['papel_nome'] =
-                    $usuario['papel_nome'];
+                $_SESSION['contexto'] =
+                    'administrador';
 
                 $update = $pdo->prepare(
                     "
