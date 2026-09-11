@@ -67,6 +67,10 @@ function buscarContextoAtivacao(
             t.expira_em,
             t.utilizado_em,
             t.revogado_em,
+            CASE
+                WHEN t.expira_em <= NOW() THEN 1
+                ELSE 0
+            END AS token_expirado,
 
             u.email,
             u.senha_hash,
@@ -120,15 +124,7 @@ function tokenEstaDisponivel(array $contexto): bool
         return false;
     }
 
-    $expiraEm = strtotime(
-        (string) $contexto['expira_em']
-    );
-
-    if ($expiraEm === false) {
-        return false;
-    }
-
-    return $expiraEm > time();
+    return (int) ($contexto['token_expirado'] ?? 1) === 0;
 }
 
 /**
@@ -158,6 +154,7 @@ function validarSenha(string $senha): ?string
 $token = obterToken();
 
 $contexto = false;
+$tokenDisponivel = false;
 
 if (
     $token === ''
@@ -187,6 +184,10 @@ if (
             $erro =
                 'Esta conta já foi ativada.';
         }
+        $tokenDisponivel =
+            $erro === ''
+            && is_array($contexto)
+            && tokenEstaDisponivel($contexto);
     } catch (Throwable $e) {
         error_log(
             'Erro ao validar token de ativação: '
@@ -595,7 +596,7 @@ if (is_array($contexto)) {
             Ir para o login
         </a>
 
-    <?php elseif ($erro !== '' && !$contexto): ?>
+    <?php elseif ($erro !== '' && !$tokenDisponivel): ?>
 
         <h1>Link inválido</h1>
 

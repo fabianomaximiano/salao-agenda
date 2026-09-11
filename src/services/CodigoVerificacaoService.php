@@ -78,7 +78,11 @@ final class CodigoVerificacaoService
                     tentativas,
                     expira_em,
                     utilizado_em,
-                    revogado_em
+                    revogado_em,
+                    CASE
+                        WHEN expira_em <= NOW() THEN 1
+                        ELSE 0
+                    END AS expirado
                 FROM usuario_codigos_verificacao
                 WHERE usuario_id = :usuario_id
                   AND utilizado_em IS NULL
@@ -101,10 +105,7 @@ final class CodigoVerificacaoService
                 );
             }
 
-            if (
-                strtotime((string) $registro['expira_em'])
-                <= time()
-            ) {
+            if ((int) $registro['expirado'] === 1) {
                 $this->revogarCodigo(
                     $pdo,
                     (int) $registro['id']
@@ -229,6 +230,50 @@ final class CodigoVerificacaoService
 
             throw $e;
         }
+    }
+
+    /**
+     * Retorna quantos segundos ainda faltam para permitir novo envio.
+     *
+     * O cálculo é feito pelo MySQL para manter a mesma referência temporal
+     * utilizada pela regra de cooldown do backend.
+     */
+    public function segundosRestantesCooldown(
+        PDO $pdo,
+        int $usuarioId
+    ): int {
+        if ($usuarioId <= 0) {
+            return 0;
+        }
+
+        $stmt = $pdo->prepare(
+            '
+            SELECT TIMESTAMPDIFF(
+                SECOND,
+                criado_em,
+                NOW()
+            ) AS segundos
+            FROM usuario_codigos_verificacao
+            WHERE usuario_id = :usuario_id
+            ORDER BY id DESC
+            LIMIT 1
+            '
+        );
+
+        $stmt->execute([
+            ':usuario_id' => $usuarioId,
+        ]);
+
+        $segundos = $stmt->fetchColumn();
+
+        if ($segundos === false) {
+            return 0;
+        }
+
+        return max(
+            0,
+            self::COOLDOWN_SEGUNDOS - max(0, (int) $segundos)
+        );
     }
 
     /**

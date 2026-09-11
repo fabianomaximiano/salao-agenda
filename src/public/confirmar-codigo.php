@@ -28,6 +28,14 @@ if ($usuarioId <= 0) {
 
 $pdo = getDB();
 
+$codigoService = new CodigoVerificacaoService();
+
+$segundosRestantesCooldown =
+    $codigoService->segundosRestantesCooldown(
+        $pdo,
+        $usuarioId
+    );
+
 $erro = (string) (
     $_SESSION['cadastro_verificacao_erro']
     ?? ''
@@ -111,8 +119,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $codigo = trim((string) ($_POST['codigo'] ?? ''));
 
     try {
-        $codigoService = new CodigoVerificacaoService();
-
         $codigoService->validar(
             $pdo,
             $usuarioId,
@@ -408,10 +414,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button
                 type="button"
                 id="btn-reenviar"
-                disabled
+                <?= $segundosRestantesCooldown > 0 ? 'disabled' : '' ?>
             >
-                Reenviar código em
-                <span id="contador">60</span>s
+                <?php if ($segundosRestantesCooldown > 0): ?>
+                    Reenviar código em
+                    <span id="contador">
+                        <?= $segundosRestantesCooldown ?>
+                    </span>s
+                <?php else: ?>
+                    Reenviar código
+                <?php endif; ?>
             </button>
 
             <p id="mensagem-reenvio"></p>
@@ -425,25 +437,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script>
 (() => {
     const botao = document.getElementById('btn-reenviar');
-    const contador = document.getElementById('contador');
     const mensagem = document.getElementById('mensagem-reenvio');
 
-    let segundos = 60;
+    let segundos = <?= json_encode(
+        $segundosRestantesCooldown,
+        JSON_UNESCAPED_UNICODE
+    ) ?>;
 
-    const intervalo = window.setInterval(() => {
-        segundos--;
+    let intervalo = null;
 
-        if (contador) {
-            contador.textContent = String(segundos);
-        }
-
+    function atualizarBotao() {
         if (segundos <= 0) {
-            window.clearInterval(intervalo);
-
             botao.disabled = false;
             botao.textContent = 'Reenviar código';
+            return;
         }
-    }, 1000);
+
+        botao.disabled = true;
+        botao.textContent =
+            `Reenviar código em ${segundos}s`;
+    }
+
+    function iniciarContagem() {
+        if (intervalo !== null) {
+            window.clearInterval(intervalo);
+        }
+
+        atualizarBotao();
+
+        if (segundos <= 0) {
+            return;
+        }
+
+        intervalo = window.setInterval(() => {
+            segundos--;
+
+            atualizarBotao();
+
+            if (segundos <= 0) {
+                window.clearInterval(intervalo);
+                intervalo = null;
+            }
+        }, 1000);
+    }
+
+    iniciarContagem();
 
     botao.addEventListener('click', async () => {
         if (botao.disabled) {
@@ -477,14 +515,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 return;
             }
 
-            segundos = 60;
+            segundos = Number(
+                dados.cooldown_segundos ?? 60
+            );
 
-            botao.textContent = 'Reenviar código em 60s';
-
-            window.setTimeout(() => {
-                botao.disabled = false;
-                botao.textContent = 'Reenviar código';
-            }, 60000);
+            iniciarContagem();
         } catch (erro) {
             mensagem.textContent =
                 'Não foi possível reenviar o código.';

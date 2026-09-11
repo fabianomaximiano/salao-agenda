@@ -16,15 +16,19 @@ require_once dirname(__DIR__) . '/services/EmailService.php';
 function responder(
     bool $sucesso,
     string $mensagem,
-    int $status = 200
+    int $status = 200,
+    array $dados = []
 ): never {
     http_response_code($status);
 
     echo json_encode(
-        [
-            'sucesso' => $sucesso,
-            'mensagem' => $mensagem,
-        ],
+        array_merge(
+            [
+                'sucesso' => $sucesso,
+                'mensagem' => $mensagem,
+            ],
+            $dados
+        ),
         JSON_UNESCAPED_UNICODE
         | JSON_UNESCAPED_SLASHES
     );
@@ -211,9 +215,19 @@ try {
         );
     }
 
+    $cooldownSegundos =
+        $codigoService->segundosRestantesCooldown(
+            $pdo,
+            $usuarioId
+        );
+
     responder(
         true,
-        'Enviamos um novo código para o seu e-mail.'
+        'Enviamos um novo código para o seu e-mail.',
+        200,
+        [
+            'cooldown_segundos' => $cooldownSegundos,
+        ]
     );
 } catch (Throwable $e) {
     error_log(

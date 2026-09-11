@@ -1004,3 +1004,146 @@ Regra principal:
 >
 > **Cada informação possui uma única fonte oficial e pode ser reutilizada
 > pelo outro sistema através da integração.**
+
+## Perfil público do profissional
+
+O cadastro de profissionais deverá permitir que os dados profissionais sejam
+utilizados tanto no painel administrativo quanto nos canais públicos integrados
+à plataforma, incluindo o site da empresa.
+
+### Dados de apresentação
+
+O profissional poderá possuir:
+
+- nome de exibição;
+- cargo ou especialidade;
+- micro currículo / apresentação profissional;
+- foto de perfil;
+- indicação se deve aparecer publicamente no site;
+- slug público;
+- ordem de exibição.
+
+Os dados pessoais e de contato continuam pertencendo ao cadastro de `pessoas`.
+Os campos acima representam informações específicas da atuação profissional.
+
+### Foto de perfil
+
+A foto do profissional deverá ser processada automaticamente pela aplicação.
+
+O administrador não será responsável por otimizar manualmente a imagem antes
+do envio.
+
+#### Upload
+
+Formatos aceitos:
+
+- JPEG;
+- PNG;
+- WebP.
+
+Tamanho máximo do arquivo original:
+
+- 8 MB.
+
+Dimensão mínima recomendada:
+
+- 400 × 400 pixels.
+
+A aplicação deverá validar o tipo real do arquivo e confirmar que o conteúdo
+pode ser decodificado como uma imagem válida.
+
+A extensão informada pelo usuário não deverá ser considerada suficiente para
+validar o arquivo.
+
+#### Processamento
+
+Após o upload, a aplicação deverá:
+
+1. validar a imagem;
+2. considerar/corrigir a orientação da imagem quando necessário;
+3. realizar recorte quadrado (proporção 1:1);
+4. redimensionar a imagem;
+5. converter o resultado para WebP;
+6. aplicar compressão;
+7. gerar nomes de arquivo controlados pela aplicação;
+8. armazenar somente as versões necessárias para utilização.
+
+O arquivo original não deverá ser mantido após o processamento, salvo se
+surgir futuramente uma necessidade funcional específica.
+
+### Versões da imagem
+
+Inicialmente deverão ser geradas duas versões:
+
+- 320 × 320 px — cards, listagens, agenda e componentes compactos;
+- 800 × 800 px — perfil e apresentação detalhada do profissional.
+
+Meta de peso:
+
+- desejável: até 100 KB;
+- limite recomendado: 150 KB por imagem processada.
+
+O sistema deverá priorizar qualidade visual adequada sem armazenar imagens
+desnecessariamente grandes.
+
+### Armazenamento
+
+As imagens não deverão ser armazenadas como BLOB no banco de dados.
+
+O banco deverá manter somente a referência necessária para localização da
+imagem.
+
+Exemplo conceitual:
+
+profissionais/
+└── {empresa_id}/
+    └── {profissional_id}/
+        ├── perfil-320.webp
+        └── perfil-800.webp
+
+### Utilização no site
+
+O Salão Agenda será a origem oficial das informações operacionais do
+profissional.
+
+A foto, micro currículo, especialidades e demais informações públicas
+cadastradas na Agenda poderão ser disponibilizadas ao site por meio da API.
+
+Não deverá existir necessidade de cadastrar novamente a foto ou o perfil
+profissional no WordPress.
+
+O site deverá utilizar a versão de imagem apropriada para o contexto de
+exibição e aplicar práticas de carregamento adequadas, incluindo imagens
+responsivas e lazy loading quando aplicável.
+
+### Segurança
+
+O upload deverá:
+
+- validar MIME real;
+- validar se o arquivo é uma imagem decodificável;
+- limitar tamanho e dimensões;
+- gerar um novo arquivo processado;
+- não confiar no nome original do arquivo;
+- impedir que o arquivo enviado seja interpretado como código executável.
+
+### Requisitos do CRUD de profissionais
+
+O CRUD deverá contemplar:
+
+- listar profissionais;
+- cadastrar profissional;
+- editar profissional;
+- ativar/desativar profissional;
+- foto de perfil otimizada;
+- nome de exibição;
+- cargo/especialidade;
+- micro currículo;
+- vinculação com serviços;
+- configuração de disponibilidade;
+- intervalos;
+- bloqueios;
+- vínculo opcional com usuário de acesso;
+- publicação ou não no site;
+- slug público;
+- ordem de exibição.
