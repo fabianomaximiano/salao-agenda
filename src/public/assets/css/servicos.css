@@ -1,0 +1,33 @@
+.servicos-table th,
+.servicos-table td {
+    vertical-align: middle;
+}
+
+.servicos-table thead th {
+    border-top: 0;
+    white-space: nowrap;
+}
+
+.servicos-table td {
+    min-width: 110px;
+}
+
+.servicos-table td:first-child {
+    min-width: 210px;
+}
+
+.servicos-table .servicos-acoes {
+    min-width: 175px;
+    white-space: nowrap;
+}
+
+.servicos-acoes .btn + form,
+.servicos-acoes form + .btn {
+    margin-left: 4px;
+}
+
+@media (max-width: 767.98px) {
+    .servicos-table .servicos-acoes {
+        min-width: 160px;
+    }
+}

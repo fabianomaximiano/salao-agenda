@@ -1,0 +1,34 @@
+.categorias-table th,
+.categorias-table td {
+    vertical-align: middle;
+}
+
+.categorias-table thead th {
+    border-top: 0;
+    white-space: nowrap;
+}
+
+.categorias-table td:first-child {
+    min-width: 220px;
+}
+
+.categorias-descricao {
+    max-width: 420px;
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.categorias-acoes {
+    min-width: 170px;
+    white-space: nowrap;
+}
+
+.categorias-empty-state {
+    padding: 42px 24px;
+}
+
+@media (max-width: 575.98px) {
+    .categorias-acoes .btn {
+        margin-bottom: 4px;
+    }
+}

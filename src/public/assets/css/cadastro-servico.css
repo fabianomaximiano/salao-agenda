@@ -1,0 +1,107 @@
+#cadastroServicoForm .form-group label {
+    font-weight: 600;
+}
+
+#cadastroServicoForm textarea {
+    resize: vertical;
+    min-height: 110px;
+}
+
+.cadastro-servico-ajuda p {
+    color: #5f6773;
+    line-height: 1.55;
+}
+
+.cadastro-servico-ajuda strong {
+    color: #202633;
+}
+
+.cadastro-servico-categoria-vazia {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    border: 1px dashed #cbd3df;
+    border-radius: 6px;
+    background: #f8f9fb;
+    color: #5f6773;
+}
+
+.cadastro-servico-sugestoes .app-card-body > p {
+    margin-bottom: 1.25rem;
+}
+
+.cadastro-servico-segmento h3 {
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #202633;
+}
+
+.cadastro-servico-sugestao {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    height: 100%;
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid #dfe4ec;
+    border-radius: 7px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.cadastro-servico-sugestao:hover {
+    border-color: #b9c5d6;
+    background: #fafbfd;
+}
+
+.cadastro-servico-sugestao input {
+    margin-top: 3px;
+    flex: 0 0 auto;
+}
+
+.cadastro-servico-sugestao span {
+    display: block;
+    min-width: 0;
+}
+
+.cadastro-servico-sugestao strong,
+.cadastro-servico-sugestao small {
+    display: block;
+}
+
+.cadastro-servico-sugestao small {
+    margin-top: 2px;
+    color: #6c757d;
+}
+
+.cadastro-servico-sem-sugestoes {
+    padding: 14px 16px;
+    border: 1px dashed #cbd3df;
+    border-radius: 7px;
+    background: #f8f9fb;
+    color: #5f6773;
+}
+
+.cadastro-servico-sem-sugestoes strong {
+    display: block;
+    margin-bottom: 3px;
+    color: #202633;
+}
+
+@media (max-width: 575.98px) {
+    #cadastroServicoForm .btn {
+        width: 100%;
+    }
+
+    .cadastro-servico-categoria-vazia {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .cadastro-servico-categoria-vazia .btn {
+        margin-left: 0 !important;
+    }
+}

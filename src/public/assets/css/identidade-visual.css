@@ -1,0 +1,112 @@
+.identidade-logo-atual {
+    min-height: 100px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.identidade-logo-atual img {
+    max-width: 100%;
+    max-height: 120px;
+    width: auto;
+    height: auto;
+}
+
+.identidade-cor-control {
+    display: flex;
+    align-items: stretch;
+}
+
+.identidade-color-picker {
+    width: 52px;
+    min-width: 52px;
+    height: 38px;
+    padding: 3px;
+    margin-right: 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.identidade-hex {
+    text-transform: uppercase;
+    font-family: monospace;
+}
+
+.identidade-preview {
+    min-height: 260px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.identidade-preview-logo {
+    width: 100%;
+    min-height: 100px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed #ced4da;
+    border-radius: 8px;
+}
+
+.identidade-preview-logo img {
+    max-width: 100%;
+    max-height: 110px;
+    width: auto;
+    height: auto;
+}
+
+.identidade-preview-logo span {
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.identidade-preview-nome {
+    margin-bottom: 20px;
+    font-size: 20px;
+}
+
+.identidade-preview-cores {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.identidade-preview-cores div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #6c757d;
+    font-size: 13px;
+}
+
+.identidade-preview-cores i {
+    width: 30px;
+    height: 30px;
+    display: inline-block;
+    border: 1px solid #ced4da;
+    border-radius: 50%;
+    background: transparent;
+}
+
+@media (max-width: 575.98px) {
+    .identidade-preview-cores {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+}
