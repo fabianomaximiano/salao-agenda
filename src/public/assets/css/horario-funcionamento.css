@@ -1,0 +1,71 @@
+.horario-dia {
+    margin-bottom: 14px;
+    border: 1px solid #e1e5eb;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.horario-dia:last-child {
+    margin-bottom: 0;
+}
+
+.horario-dia-cabecalho {
+    min-height: 58px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: #f8f9fb;
+}
+
+.horario-dia.is-open .horario-dia-cabecalho {
+    background: #fff;
+}
+
+.horario-dia-status {
+    color: #6c757d;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.horario-dia.is-open .horario-dia-status {
+    color: #198754;
+}
+
+.horario-dia-periodos {
+    padding: 16px;
+    border-top: 1px solid #e9ecef;
+}
+
+.horario-dia-periodos[hidden] {
+    display: none !important;
+}
+
+.horario-periodo + .horario-periodo {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px dashed #d9dee7;
+}
+
+.horario-ajuda p {
+    color: #5f6773;
+    line-height: 1.6;
+}
+
+.horario-ajuda strong {
+    color: #202633;
+}
+
+@media (max-width: 575.98px) {
+    .horario-dia-cabecalho {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .horario-dia-periodos {
+        padding: 14px;
+    }
+}

@@ -143,7 +143,7 @@ $etapas = [
     [
         'titulo' => 'Defina o horário de funcionamento',
         'concluida' => (bool) ($estado['horarios'] ?? false),
-        'url' => null,
+        'url' => 'horario-funcionamento.php',
     ],
     [
         'titulo' => 'Cadastre seus serviços',
@@ -167,7 +167,7 @@ $concluidas = count(array_filter($etapas, static fn (array $etapa): bool => $eta
 $percentual = $totalEtapas > 0 ? (int) round(($concluidas / $totalEtapas) * 100) : 0;
 
 $pageTitle = 'Dashboard';
-$pageCss = 'dashboard.css?v=20260911-3';
+$pageCss = 'dashboard.css?v=20260912-1';
 $pageJs = 'dashboard.js';
 
 require __DIR__ . '/partials/header.php';
