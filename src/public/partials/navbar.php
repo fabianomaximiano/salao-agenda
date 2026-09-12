@@ -85,8 +85,15 @@ if (count($partesNome) > 1) {
                     </div>
 
                     <a
+                        href="alterar-senha.php"
+                        class="btn btn-sm btn-outline-primary ml-3"
+                    >
+                        Alterar senha
+                    </a>
+
+                    <a
                         href="logout.php"
-                        class="btn btn-sm btn-outline-secondary ml-3"
+                        class="btn btn-sm btn-outline-secondary ml-2"
                     >
                         Sair
                     </a>

@@ -10,6 +10,9 @@ exigirAdministrador();
 $empresaId = (int) $_SESSION['empresa_id'];
 $pdo = getDB();
 
+$flashSuccess = (string) ($_SESSION['flash_success'] ?? '');
+unset($_SESSION['flash_success']);
+
 $stmt = $pdo->prepare(
     "SELECT
         EXISTS(
@@ -176,6 +179,15 @@ require __DIR__ . '/partials/navbar.php';
 ?>
 
 <main class="app-content">
+    <?php if ($flashSuccess !== ''): ?>
+        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            <?= htmlspecialchars($flashSuccess, ENT_QUOTES, 'UTF-8') ?>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Fechar">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    <?php endif; ?>
+
     <div class="app-page-header d-md-flex justify-content-between align-items-center">
         <div>
             <h1>Dashboard</h1>
