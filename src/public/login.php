@@ -7,144 +7,310 @@ session_start();
 require_once __DIR__ . '/../includes/db.php';
 
 if (isset($_SESSION['user_id'])) {
-    header('Location: dashboard.php');
+    $destino = ($_SESSION['contexto'] ?? '') === 'profissional'
+        ? 'dashboard-profissional.php'
+        : 'dashboard.php';
+
+    header('Location: ' . $destino);
     exit;
 }
 
 $erro = null;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+const LOGIN_MAX_TENTATIVAS = 3;
+const LOGIN_BLOQUEIO_MINUTOS = 15;
 
-    $email = trim($_POST['email'] ?? '');
-    $senha = $_POST['senha'] ?? '';
+function obterIpLogin(): string
+{
+    return (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+}
 
-    if ($email === '' || $senha === '') {
+function hashIpLogin(string $ip): string
+{
+    return hash('sha256', $ip);
+}
 
-        $erro = 'Informe seu e-mail e sua senha.';
+function loginEstaBloqueado(PDO $pdo, int $usuarioId, string $ipHash): bool
+{
+    $stmt = $pdo->prepare(
+        'SELECT
+            CASE
+                WHEN bloqueado_ate IS NOT NULL AND bloqueado_ate > NOW() THEN 1
+                ELSE 0
+            END AS bloqueado
+         FROM usuario_tentativas_login
+         WHERE usuario_id = :usuario_id
+           AND ip_hash = :ip_hash
+         LIMIT 1'
+    );
+    $stmt->execute([
+        ':usuario_id' => $usuarioId,
+        ':ip_hash' => $ipHash,
+    ]);
 
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $registro = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        $erro = 'Informe um e-mail válido.';
+    return $registro && (int) $registro['bloqueado'] === 1;
+}
 
-    } else {
+function registrarFalhaLogin(PDO $pdo, int $usuarioId, string $ipHash): void
+{
+    $pdo->beginTransaction();
 
-        try {
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT id, tentativas,
+                    CASE
+                        WHEN bloqueado_ate IS NOT NULL AND bloqueado_ate > NOW() THEN 1
+                        ELSE 0
+                    END AS bloqueado
+             FROM usuario_tentativas_login
+             WHERE usuario_id = :usuario_id
+               AND ip_hash = :ip_hash
+             LIMIT 1
+             FOR UPDATE'
+        );
+        $stmt->execute([
+            ':usuario_id' => $usuarioId,
+            ':ip_hash' => $ipHash,
+        ]);
+        $registro = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            $pdo = getDB();
-
-            $sql = "
-                SELECT
-                    u.id AS usuario_id,
-                    u.email AS usuario_email,
-                    u.senha_hash,
-                    u.ativo AS usuario_ativo,
-
-                    a.id AS administrador_id,
-                    a.empresa_id,
-                    a.nome_completo,
-                    a.email AS administrador_email,
-                    a.ativo AS administrador_ativo,
-
-                    e.nome_fantasia AS empresa_nome,
-                    e.ativo AS empresa_ativa
-
-                FROM usuarios u
-
-                INNER JOIN administradores a
-                    ON a.usuario_id = u.id
-
-                INNER JOIN empresas e
-                    ON e.id = a.empresa_id
-
-                WHERE u.email = :email
-
-                LIMIT 1
-            ";
-
-            $stmt = $pdo->prepare($sql);
-
-            $stmt->execute([
-                ':email' => $email
-            ]);
-
-            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$usuario) {
-
-                $erro = 'E-mail ou senha inválidos.';
-
-            } elseif (
-                !(bool) $usuario['usuario_ativo']
-                || !(bool) $usuario['administrador_ativo']
-                || !(bool) $usuario['empresa_ativa']
-            ) {
-
-                $erro = 'Esta conta está desativada.';
-
-            } elseif (
-                empty($usuario['senha_hash'])
-                || !password_verify(
-                    $senha,
-                    $usuario['senha_hash']
-                )
-            ) {
-
-                $erro = 'E-mail ou senha inválidos.';
-
-            } else {
-
-                session_regenerate_id(true);
-
-                $_SESSION['user_id'] =
-                    (int) $usuario['usuario_id'];
-
-                $_SESSION['user_email'] =
-                    $usuario['usuario_email'];
-
-                $_SESSION['user_name'] =
-                    $usuario['nome_completo'];
-
-                $_SESSION['empresa_id'] =
-                    (int) $usuario['empresa_id'];
-
-                $_SESSION['empresa_nome'] =
-                    $usuario['empresa_nome'];
-
-                $_SESSION['administrador_id'] =
-                    (int) $usuario['administrador_id'];
-
-                $_SESSION['contexto'] =
-                    'administrador';
-
-                $update = $pdo->prepare(
-                    "
-                    UPDATE usuarios
-                    SET ultimo_acesso_em = NOW()
-                    WHERE id = :id
-                    "
-                );
-
-                $update->execute([
-                    ':id' => $usuario['usuario_id']
-                ]);
-
-                header('Location: dashboard.php');
-                exit;
-            }
-
-        } catch (Throwable $e) {
-
-            error_log(
-                'Erro no login administrativo: '
-                . $e->getMessage()
+        if (!$registro) {
+            $insert = $pdo->prepare(
+                'INSERT INTO usuario_tentativas_login
+                    (usuario_id, ip_hash, tentativas, ultimo_erro_em)
+                 VALUES
+                    (:usuario_id, :ip_hash, 1, NOW())'
             );
+            $insert->execute([
+                ':usuario_id' => $usuarioId,
+                ':ip_hash' => $ipHash,
+            ]);
+        } elseif ((int) $registro['bloqueado'] === 1) {
+            $update = $pdo->prepare(
+                'UPDATE usuario_tentativas_login
+                 SET ultimo_erro_em = NOW()
+                 WHERE id = :id'
+            );
+            $update->execute([':id' => (int) $registro['id']]);
+        } else {
+            $tentativas = (int) $registro['tentativas'] + 1;
 
-            $erro =
-                'Não foi possível realizar o login agora.';
+            if ($tentativas >= LOGIN_MAX_TENTATIVAS) {
+                $update = $pdo->prepare(
+                    'UPDATE usuario_tentativas_login
+                     SET tentativas = :tentativas,
+                         bloqueado_ate = DATE_ADD(NOW(), INTERVAL 15 MINUTE),
+                         ultimo_erro_em = NOW()
+                     WHERE id = :id'
+                );
+                $update->execute([
+                    ':tentativas' => $tentativas,
+                    ':id' => (int) $registro['id'],
+                ]);
+            } else {
+                $update = $pdo->prepare(
+                    'UPDATE usuario_tentativas_login
+                     SET tentativas = :tentativas,
+                         bloqueado_ate = NULL,
+                         ultimo_erro_em = NOW()
+                     WHERE id = :id'
+                );
+                $update->execute([
+                    ':tentativas' => $tentativas,
+                    ':id' => (int) $registro['id'],
+                ]);
+            }
         }
+
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $e;
     }
 }
 
+function limparFalhasLogin(PDO $pdo, int $usuarioId, string $ipHash): void
+{
+    $stmt = $pdo->prepare(
+        'DELETE FROM usuario_tentativas_login
+         WHERE usuario_id = :usuario_id
+           AND ip_hash = :ip_hash'
+    );
+    $stmt->execute([
+        ':usuario_id' => $usuarioId,
+        ':ip_hash' => $ipHash,
+    ]);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $email = mb_strtolower(trim((string) ($_POST['email'] ?? '')));
+    $senha = (string) ($_POST['senha'] ?? '');
+
+    if ($email === '' || $senha === '') {
+        $erro = 'Informe seu e-mail e sua senha.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $erro = 'Informe um e-mail válido.';
+    } else {
+        try {
+            $pdo = getDB();
+            $ipHash = hashIpLogin(obterIpLogin());
+
+            $stmtUsuario = $pdo->prepare(
+                'SELECT id, email, senha_hash, ativo
+                 FROM usuarios
+                 WHERE email = :email
+                 LIMIT 1'
+            );
+            $stmtUsuario->execute([':email' => $email]);
+            $usuario = $stmtUsuario->fetch(PDO::FETCH_ASSOC);
+
+            if (!$usuario) {
+                $erro = 'E-mail ou senha inválidos.';
+            } else {
+                $usuarioId = (int) $usuario['id'];
+
+                if (loginEstaBloqueado($pdo, $usuarioId, $ipHash)) {
+                    $erro = 'Não foi possível realizar o acesso agora. Tente novamente mais tarde.';
+                } elseif (
+                    (int) $usuario['ativo'] !== 1
+                    || empty($usuario['senha_hash'])
+                    || !password_verify($senha, (string) $usuario['senha_hash'])
+                ) {
+                    if ((int) $usuario['ativo'] === 1 && !empty($usuario['senha_hash'])) {
+                        registrarFalhaLogin($pdo, $usuarioId, $ipHash);
+
+                        if (loginEstaBloqueado($pdo, $usuarioId, $ipHash)) {
+                            $erro = 'Não foi possível realizar o acesso agora. Tente novamente mais tarde.';
+                        } else {
+                            $erro = 'E-mail ou senha inválidos.';
+                        }
+                    } else {
+                        $erro = 'E-mail ou senha inválidos.';
+                    }
+                } else {
+                    $stmtAdministrador = $pdo->prepare(
+                        'SELECT
+                            a.id AS administrador_id,
+                            a.empresa_id,
+                            a.nome_completo,
+                            a.ativo AS administrador_ativo,
+                            e.nome_fantasia AS empresa_nome,
+                            e.ativo AS empresa_ativa
+                         FROM administradores a
+                         INNER JOIN empresas e
+                           ON e.id = a.empresa_id
+                         WHERE a.usuario_id = :usuario_id
+                         LIMIT 2'
+                    );
+                    $stmtAdministrador->execute([':usuario_id' => $usuarioId]);
+                    $administradores = $stmtAdministrador->fetchAll(PDO::FETCH_ASSOC);
+
+                    $stmtProfissional = $pdo->prepare(
+                        'SELECT
+                            pr.id AS profissional_id,
+                            pr.pessoa_id,
+                            pr.empresa_id,
+                            pr.ativo AS profissional_ativo,
+                            p.nome_completo,
+                            p.ativo AS pessoa_ativa,
+                            e.nome_fantasia AS empresa_nome,
+                            e.ativo AS empresa_ativa
+                         FROM profissionais pr
+                         INNER JOIN pessoas p
+                           ON p.id = pr.pessoa_id
+                          AND p.empresa_id = pr.empresa_id
+                         INNER JOIN empresas e
+                           ON e.id = pr.empresa_id
+                         WHERE pr.usuario_id = :usuario_id
+                         LIMIT 2'
+                    );
+                    $stmtProfissional->execute([':usuario_id' => $usuarioId]);
+                    $profissionais = $stmtProfissional->fetchAll(PDO::FETCH_ASSOC);
+
+                    $contextos = count($administradores) + count($profissionais);
+
+                    if ($contextos !== 1) {
+                        $erro = 'Não foi possível determinar o contexto desta conta.';
+                    } elseif ($administradores) {
+                        $contexto = $administradores[0];
+
+                        if (
+                            (int) $contexto['administrador_ativo'] !== 1
+                            || (int) $contexto['empresa_ativa'] !== 1
+                        ) {
+                            $erro = 'Esta conta está desativada.';
+                        } else {
+                            limparFalhasLogin($pdo, $usuarioId, $ipHash);
+                            session_regenerate_id(true);
+
+                            $_SESSION['user_id'] = $usuarioId;
+                            $_SESSION['user_email'] = (string) $usuario['email'];
+                            $_SESSION['user_name'] = (string) $contexto['nome_completo'];
+                            $_SESSION['empresa_id'] = (int) $contexto['empresa_id'];
+                            $_SESSION['empresa_nome'] = (string) $contexto['empresa_nome'];
+                            $_SESSION['administrador_id'] = (int) $contexto['administrador_id'];
+                            $_SESSION['contexto'] = 'administrador';
+
+                            unset($_SESSION['profissional_id'], $_SESSION['pessoa_id']);
+
+                            $update = $pdo->prepare(
+                                'UPDATE usuarios
+                                 SET ultimo_acesso_em = NOW()
+                                 WHERE id = :id'
+                            );
+                            $update->execute([':id' => $usuarioId]);
+
+                            header('Location: dashboard.php');
+                            exit;
+                        }
+                    } else {
+                        $contexto = $profissionais[0];
+
+                        if (
+                            (int) $contexto['profissional_ativo'] !== 1
+                            || (int) $contexto['pessoa_ativa'] !== 1
+                            || (int) $contexto['empresa_ativa'] !== 1
+                        ) {
+                            $erro = 'Esta conta está desativada.';
+                        } else {
+                            limparFalhasLogin($pdo, $usuarioId, $ipHash);
+                            session_regenerate_id(true);
+
+                            $_SESSION['user_id'] = $usuarioId;
+                            $_SESSION['user_email'] = (string) $usuario['email'];
+                            $_SESSION['user_name'] = (string) $contexto['nome_completo'];
+                            $_SESSION['empresa_id'] = (int) $contexto['empresa_id'];
+                            $_SESSION['empresa_nome'] = (string) $contexto['empresa_nome'];
+                            $_SESSION['profissional_id'] = (int) $contexto['profissional_id'];
+                            $_SESSION['pessoa_id'] = (int) $contexto['pessoa_id'];
+                            $_SESSION['contexto'] = 'profissional';
+
+                            unset($_SESSION['administrador_id']);
+
+                            $update = $pdo->prepare(
+                                'UPDATE usuarios
+                                 SET ultimo_acesso_em = NOW()
+                                 WHERE id = :id'
+                            );
+                            $update->execute([':id' => $usuarioId]);
+
+                            header('Location: dashboard-profissional.php');
+                            exit;
+                        }
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('Erro no login: ' . $e->getMessage());
+            $erro = 'Não foi possível realizar o login agora.';
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -193,11 +359,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         >
 
                         <h1 class="h3 font-weight-bold mt-3 mb-2">
-                            Acesse sua empresa
+                            Acesse sua conta
                         </h1>
 
                         <p class="text-muted mb-0">
-                            Entre com sua conta administrativa.
+                            Entre com seu e-mail corporativo e sua senha.
                         </p>
 
                     </div>
@@ -266,6 +432,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                             <div class="invalid-feedback">
                                 Informe sua senha.
+                            </div>
+
+                            <div class="text-right mt-2">
+                                <a href="esqueci-senha.php">
+                                    Esqueci minha senha
+                                </a>
                             </div>
 
                         </div>

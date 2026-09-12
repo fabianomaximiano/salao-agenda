@@ -1,0 +1,30 @@
+html,
+body {
+    min-height: 100%;
+}
+
+body {
+    margin: 0;
+    background: #f5f6f8;
+}
+
+.professional-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 32px 0;
+}
+
+.professional-card {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px;
+    background: #fff;
+    border: 1px solid #e3e6ea;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+.professional-card h1 {
+    margin-bottom: 16px;
+}

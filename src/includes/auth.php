@@ -27,9 +27,22 @@ function exigirAdministrador(): void
 {
     exigirLogin();
 
-    if ($_SESSION['contexto'] !== 'administrador') {
+    if (($_SESSION['contexto'] ?? '') !== 'administrador') {
         http_response_code(403);
+        exit('Acesso negado.');
+    }
+}
 
+function exigirProfissional(): void
+{
+    exigirLogin();
+
+    if (
+        ($_SESSION['contexto'] ?? '') !== 'profissional'
+        || empty($_SESSION['profissional_id'])
+        || empty($_SESSION['pessoa_id'])
+    ) {
+        http_response_code(403);
         exit('Acesso negado.');
     }
 }

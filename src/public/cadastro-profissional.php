@@ -46,6 +46,7 @@ if ($editarId) {
         'SELECT
             pr.id,
             pr.pessoa_id,
+            pr.usuario_id,
             pr.cargo,
             pr.descricao,
             pr.ativo,
@@ -123,6 +124,8 @@ function valorProfissional(array $old, ?array $profissional, string $campo, stri
 
 $temOld = $old !== [];
 $modoEdicao = $profissionalEdicao !== null;
+$usuarioIdVinculado = $modoEdicao ? (int) ($profissionalEdicao['usuario_id'] ?? 0) : 0;
+$acessoVinculado = $usuarioIdVinculado > 0;
 
 if ($temOld) {
     $ativoMarcado = !empty($old['ativo']);
@@ -267,7 +270,11 @@ require __DIR__ . '/partials/navbar.php';
                                     <?= htmlspecialchars($erros['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                                 </div>
                                 <small class="form-text text-muted">
-                                    Este e-mail poderá ser usado posteriormente para liberar acesso ao sistema.
+                                    <?php if ($acessoVinculado): ?>
+                                        Este e-mail está vinculado à conta de acesso do profissional.
+                                    <?php else: ?>
+                                        Este e-mail será usado para liberar o acesso seguro ao sistema.
+                                    <?php endif; ?>
                                 </small>
                             </div>
                         </div>
@@ -489,6 +496,39 @@ require __DIR__ . '/partials/navbar.php';
             </div>
 
             <div class="col-12 col-xl-4">
+                <?php if ($modoEdicao): ?>
+                    <div class="app-card mb-4">
+                        <div class="app-card-header"><h2>Acesso ao sistema</h2></div>
+                        <div class="app-card-body">
+                            <?php if ($acessoVinculado): ?>
+                                <p>
+                                    <span class="badge badge-success">Conta vinculada</span>
+                                </p>
+                                <p class="text-muted">
+                                    O profissional já possui uma identidade de acesso vinculada. Se a ativação ainda não foi concluída, você pode reenviar o convite respeitando os limites de segurança.
+                                </p>
+                            <?php else: ?>
+                                <p>
+                                    <span class="badge badge-secondary">Sem acesso</span>
+                                </p>
+                                <p class="text-muted">
+                                    O cadastro operacional existe, mas ainda não há usuário para login. O convite será enviado ao e-mail corporativo informado.
+                                </p>
+                            <?php endif; ?>
+
+                            <form action="api/profissionais.php" method="post">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="acao" value="liberar_acesso">
+                                <input type="hidden" name="profissional_id" value="<?= (int) $profissionalEdicao['id'] ?>">
+
+                                <button type="submit" class="btn btn-outline-primary btn-block">
+                                    <?= $acessoVinculado ? 'Reenviar convite de acesso' : 'Liberar acesso' ?>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
                 <div class="app-card cadastro-profissional-ajuda mb-4">
                     <div class="app-card-header"><h2>Como funciona</h2></div>
                     <div class="app-card-body">

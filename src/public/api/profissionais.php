@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../services/CodigoVerificacaoService.php';
+require_once __DIR__ . '/../../services/TokenAtivacaoService.php';
+require_once __DIR__ . '/../../services/EmailService.php';
 
 exigirAdministrador();
 
@@ -215,6 +218,226 @@ if ($acao === 'alternar_status') {
     redirecionarListaProfissionais();
 }
 
+
+if ($acao === 'liberar_acesso') {
+    $profissionalId = filter_input(INPUT_POST, 'profissional_id', FILTER_VALIDATE_INT);
+
+    if (!$profissionalId) {
+        flashListaProfissionais('danger', 'Profissional inválido.');
+        redirecionarListaProfissionais();
+    }
+
+    try {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare(
+            'SELECT
+                pr.id,
+                pr.usuario_id,
+                pr.ativo AS profissional_ativo,
+                pr.pessoa_id,
+                p.nome_completo,
+                p.email,
+                p.ativo AS pessoa_ativa,
+                e.nome_fantasia,
+                e.ativo AS empresa_ativa
+             FROM profissionais pr
+             INNER JOIN pessoas p
+               ON p.id = pr.pessoa_id
+              AND p.empresa_id = pr.empresa_id
+             INNER JOIN empresas e
+               ON e.id = pr.empresa_id
+             WHERE pr.id = :id
+               AND pr.empresa_id = :empresa_id
+             LIMIT 1
+             FOR UPDATE'
+        );
+        $stmt->execute([
+            ':id' => $profissionalId,
+            ':empresa_id' => $empresaId,
+        ]);
+        $profissional = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$profissional) {
+            throw new RuntimeException('Profissional não encontrado.');
+        }
+
+        if (
+            (int) $profissional['profissional_ativo'] !== 1
+            || (int) $profissional['pessoa_ativa'] !== 1
+            || (int) $profissional['empresa_ativa'] !== 1
+        ) {
+            throw new RuntimeException(
+                'O profissional e a empresa precisam estar ativos para liberar o acesso.'
+            );
+        }
+
+        $emailAcesso = mb_strtolower(trim((string) ($profissional['email'] ?? '')));
+
+        if ($emailAcesso === '' || !filter_var($emailAcesso, FILTER_VALIDATE_EMAIL)) {
+            throw new RuntimeException(
+                'Informe um e-mail corporativo válido antes de liberar o acesso.'
+            );
+        }
+
+        $usuarioId = (int) ($profissional['usuario_id'] ?? 0);
+        $usuarioCriadoAgora = false;
+
+        if ($usuarioId <= 0) {
+            $stmtEmail = $pdo->prepare(
+                'SELECT id
+                 FROM usuarios
+                 WHERE email = :email
+                 LIMIT 1
+                 FOR UPDATE'
+            );
+            $stmtEmail->execute([':email' => $emailAcesso]);
+
+            if ($stmtEmail->fetchColumn()) {
+                throw new RuntimeException(
+                    'Este e-mail já está vinculado a outra conta de acesso.'
+                );
+            }
+
+            $stmtUsuario = $pdo->prepare(
+                'INSERT INTO usuarios (
+                    email,
+                    senha_hash,
+                    google_id,
+                    foto_url,
+                    ativo
+                 ) VALUES (
+                    :email,
+                    NULL,
+                    NULL,
+                    NULL,
+                    0
+                 )'
+            );
+            $stmtUsuario->execute([':email' => $emailAcesso]);
+            $usuarioId = (int) $pdo->lastInsertId();
+            $usuarioCriadoAgora = true;
+
+            $stmtVincular = $pdo->prepare(
+                'UPDATE profissionais
+                 SET usuario_id = :usuario_id
+                 WHERE id = :profissional_id
+                   AND empresa_id = :empresa_id
+                   AND usuario_id IS NULL'
+            );
+            $stmtVincular->execute([
+                ':usuario_id' => $usuarioId,
+                ':profissional_id' => $profissionalId,
+                ':empresa_id' => $empresaId,
+            ]);
+
+            if ($stmtVincular->rowCount() !== 1) {
+                throw new RuntimeException(
+                    'Não foi possível vincular a conta ao profissional.'
+                );
+            }
+        } else {
+            $stmtUsuario = $pdo->prepare(
+                'SELECT id, email, senha_hash, ativo
+                 FROM usuarios
+                 WHERE id = :usuario_id
+                 LIMIT 1
+                 FOR UPDATE'
+            );
+            $stmtUsuario->execute([':usuario_id' => $usuarioId]);
+            $usuario = $stmtUsuario->fetch(PDO::FETCH_ASSOC);
+
+            if (!$usuario) {
+                throw new RuntimeException('A conta vinculada ao profissional não foi encontrada.');
+            }
+
+            if (mb_strtolower((string) $usuario['email']) !== $emailAcesso) {
+                throw new RuntimeException(
+                    'O e-mail corporativo foi alterado após a criação da conta de acesso. '
+                    . 'Ajuste o acesso antes de reenviar o convite.'
+                );
+            }
+
+            if ((int) $usuario['ativo'] === 1 && !empty($usuario['senha_hash'])) {
+                throw new RuntimeException('O acesso deste profissional já está ativo.');
+            }
+        }
+
+        $pdo->commit();
+
+        $codigoService = new CodigoVerificacaoService();
+        $codigo = $usuarioCriadoAgora
+            ? $codigoService->gerar($pdo, $usuarioId)
+            : $codigoService->reenviar($pdo, $usuarioId);
+
+        $tokenService = new TokenAtivacaoService();
+        $tokenReferencia = $tokenService->gerar($pdo, $usuarioId);
+
+        $appUrl = rtrim(
+            (string) (getenv('APP_URL') ?: 'http://localhost:8096'),
+            '/'
+        );
+
+        $linkConfirmacao = $appUrl
+            . '/confirmar-codigo.php?token='
+            . urlencode($tokenReferencia);
+
+        $nome = (string) $profissional['nome_completo'];
+        $empresa = (string) $profissional['nome_fantasia'];
+        $validadeMinutos = 10;
+
+        ob_start();
+        require __DIR__ . '/../../templates/emails/acesso-profissional-codigo.php';
+        $html = (string) ob_get_clean();
+
+        $emailService = new EmailService();
+        $emailService->enviar(
+            $emailAcesso,
+            $nome,
+            'Ative seu acesso profissional - Salão Agenda',
+            $html,
+            "Olá, {$nome}.\n\n"
+            . "A empresa {$empresa} liberou seu acesso profissional.\n\n"
+            . "Código de verificação: {$codigo}\n\n"
+            . "Abra este link para confirmar seu e-mail:\n{$linkConfirmacao}\n\n"
+            . "O código expira em 10 minutos."
+        );
+
+        $_SESSION['csrf_cadastro_profissional'] = bin2hex(random_bytes(32));
+
+        flashProfissional(
+            'success',
+            $usuarioCriadoAgora
+                ? 'Acesso liberado. Enviamos o convite para o e-mail corporativo do profissional.'
+                : 'Novo convite de acesso enviado para o profissional.'
+        );
+
+        redirecionarCadastroProfissional($profissionalId);
+    } catch (RuntimeException $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        flashProfissional('danger', $e->getMessage());
+        redirecionarCadastroProfissional($profissionalId ?: null);
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        error_log(
+            'Erro ao liberar acesso do profissional id=' . (int) $profissionalId
+            . ': ' . $e->getMessage()
+        );
+
+        flashProfissional(
+            'danger',
+            'Não foi possível liberar o acesso agora. Tente novamente.'
+        );
+        redirecionarCadastroProfissional($profissionalId ?: null);
+    }
+}
+
 if (!in_array($acao, ['criar', 'atualizar'], true)) {
     http_response_code(400);
     exit('Ação inválida.');
@@ -232,7 +455,7 @@ if ($acao === 'atualizar') {
     }
 
     $stmt = $pdo->prepare(
-        'SELECT id, pessoa_id
+        'SELECT id, pessoa_id, usuario_id
          FROM profissionais
          WHERE id = :id
            AND empresa_id = :empresa_id
@@ -307,6 +530,31 @@ if (!in_array($genero, $generosValidos, true)) {
 
 if ($email !== '' && (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 190)) {
     $erros['email'] = 'Informe um e-mail válido.';
+}
+
+if (
+    $acao === 'atualizar'
+    && !empty($profissionalAtual['usuario_id'])
+    && !isset($erros['email'])
+) {
+    $stmtEmailAcesso = $pdo->prepare(
+        'SELECT email
+         FROM usuarios
+         WHERE id = :usuario_id
+         LIMIT 1'
+    );
+    $stmtEmailAcesso->execute([
+        ':usuario_id' => (int) $profissionalAtual['usuario_id'],
+    ]);
+    $emailAcessoAtual = $stmtEmailAcesso->fetchColumn();
+
+    if (
+        $emailAcessoAtual === false
+        || mb_strtolower((string) $emailAcessoAtual) !== $email
+    ) {
+        $erros['email'] =
+            'O e-mail corporativo está vinculado à conta de acesso e não pode ser alterado por este formulário.';
+    }
 }
 
 if (mb_strlen($telefone) > 30) {
