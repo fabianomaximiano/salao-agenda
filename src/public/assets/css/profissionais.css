@@ -1,0 +1,19 @@
+.profissionais-table th,
+.profissionais-table td {
+    vertical-align: middle;
+}
+
+.profissionais-servicos-resumo {
+    max-width: 420px;
+    white-space: normal;
+}
+
+.profissionais-acoes {
+    white-space: nowrap;
+}
+
+@media (max-width: 767.98px) {
+    .profissionais-acoes {
+        min-width: 160px;
+    }
+}

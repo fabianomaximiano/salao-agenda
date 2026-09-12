@@ -1,0 +1,48 @@
+.cadastro-profissional-whatsapp {
+    padding-bottom: .55rem;
+}
+
+.cadastro-profissional-servicos {
+    display: grid;
+    gap: 1rem;
+}
+
+.cadastro-profissional-servico {
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    padding: 1rem;
+}
+
+.cadastro-profissional-servico.is-inativo {
+    background: #f8f9fa;
+}
+
+.cadastro-profissional-servico-padrao {
+    margin: .4rem 0 0 1.5rem;
+    color: #6c757d;
+    font-size: .875rem;
+}
+
+.cadastro-profissional-servico-personalizacao {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.cadastro-profissional-servico-personalizacao.is-disabled {
+    opacity: .55;
+}
+
+.cadastro-profissional-ajuda p {
+    line-height: 1.55;
+}
+
+@media (max-width: 767.98px) {
+    .cadastro-profissional-servico {
+        padding: .875rem;
+    }
+
+    .cadastro-profissional-servico-padrao {
+        margin-left: 0;
+    }
+}
