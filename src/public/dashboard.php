@@ -159,9 +159,9 @@ $etapas = [
         'url' => 'cadastro-profissional.php',
     ],
     [
-        'titulo' => 'Configure a agenda',
+        'titulo' => 'Defina os horários dos profissionais',
         'concluida' => (bool) ($estado['agenda'] ?? false),
-        'url' => 'agenda.php',
+        'url' => 'horarios-profissionais.php',
     ],
 ];
 

@@ -1,0 +1,232 @@
+.agenda-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.agenda-section-eyebrow {
+    display: block;
+    margin-bottom: .2rem;
+    color: #6c757d;
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.agenda-functioning {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.agenda-functioning h2,
+.agenda-calendar-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.agenda-functioning-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.agenda-functioning-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: .4rem .7rem;
+    border: 1px solid #dee2e6;
+    border-radius: 999px;
+    background: #fff;
+    font-size: .875rem;
+}
+
+.agenda-filters {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
+    gap: 1rem;
+    align-items: end;
+}
+
+.agenda-filter-actions {
+    display: flex;
+    gap: .5rem;
+}
+
+.agenda-active-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem;
+    align-items: center;
+    padding: .75rem 1rem;
+    border-radius: .5rem;
+    background: #f8f9fa;
+    font-size: .9rem;
+}
+
+.agenda-calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.agenda-month-navigation {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+}
+
+.agenda-calendar-scroll {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.agenda-calendar {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(100px, 1fr));
+    min-width: 760px;
+}
+
+.agenda-weekday {
+    padding: .7rem .55rem;
+    border-right: 1px solid #e9ecef;
+    border-bottom: 1px solid #dee2e6;
+    background: #f8f9fa;
+    color: #6c757d;
+    font-size: .75rem;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.agenda-day {
+    min-height: 132px;
+    padding: .65rem;
+    border-right: 1px solid #e9ecef;
+    border-bottom: 1px solid #e9ecef;
+    color: inherit;
+    text-decoration: none;
+    transition: background-color .15s ease, box-shadow .15s ease;
+}
+
+a.agenda-day:hover {
+    position: relative;
+    z-index: 1;
+    background: #f8fbff;
+    color: inherit;
+    text-decoration: none;
+    box-shadow: inset 0 0 0 1px rgba(0, 123, 255, .2);
+}
+
+.agenda-day--empty {
+    background: #fafafa;
+}
+
+.agenda-day--closed {
+    background: #f4f4f4;
+    color: #8a8f94;
+}
+
+.agenda-day--unavailable {
+    background: #fafafa;
+    color: #777;
+}
+
+.agenda-day--today {
+    box-shadow: inset 0 0 0 2px rgba(0, 123, 255, .45);
+}
+
+.agenda-day-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    margin-bottom: .75rem;
+}
+
+.agenda-day-number {
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.agenda-today-badge {
+    padding: .15rem .4rem;
+    border-radius: 999px;
+    background: #e8f2ff;
+    color: #0056b3;
+    font-size: .68rem;
+    font-weight: 700;
+}
+
+.agenda-day-content {
+    display: flex;
+    flex-direction: column;
+    gap: .45rem;
+}
+
+.agenda-day-status {
+    font-size: .78rem;
+    font-weight: 700;
+}
+
+.agenda-day-status--open {
+    color: #2f7d32;
+}
+
+.agenda-day-placeholder {
+    color: #6c757d;
+    font-size: .72rem;
+    line-height: 1.35;
+}
+
+.agenda-calendar-note {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid #e9ecef;
+    background: #fbfbfc;
+    color: #6c757d;
+    font-size: .875rem;
+}
+
+@media (max-width: 991.98px) {
+    .agenda-filters {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .agenda-filter-actions {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .agenda-header-actions {
+        width: 100%;
+    }
+
+    .agenda-header-actions .btn {
+        flex: 1 1 100%;
+    }
+
+    .agenda-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .agenda-filter-actions {
+        grid-column: auto;
+        flex-direction: column;
+    }
+
+    .agenda-filter-actions .btn {
+        width: 100%;
+    }
+
+    .agenda-calendar-header {
+        align-items: flex-start;
+    }
+
+    .agenda-month-navigation {
+        flex: 1;
+    }
+}
