@@ -5,7 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 
-exigirAdministrador();
+exigirAcesso('servicos');
 
 $empresaId = (int) $_SESSION['empresa_id'];
 $pdo = getDB();

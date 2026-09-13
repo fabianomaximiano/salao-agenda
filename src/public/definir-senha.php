@@ -65,8 +65,13 @@ function buscarContextoAtivacao(
             pr.empresa_id AS profissional_empresa_id,
             pr.ativo AS profissional_ativo,
 
-            p.nome_completo AS profissional_nome,
-            p.ativo AS pessoa_ativa,
+            c.id AS colaborador_id,
+            c.pessoa_id AS colaborador_pessoa_id,
+            c.empresa_id AS colaborador_empresa_id,
+            c.ativo AS colaborador_ativo,
+
+            COALESCE(pp.nome_completo, pc.nome_completo) AS pessoa_nome,
+            COALESCE(pp.ativo, pc.ativo) AS pessoa_ativa,
 
             e.id AS empresa_id,
             e.nome_fantasia,
@@ -83,12 +88,19 @@ function buscarContextoAtivacao(
         LEFT JOIN profissionais pr
             ON pr.usuario_id = u.id
 
-        LEFT JOIN pessoas p
-            ON p.id = pr.pessoa_id
-           AND p.empresa_id = pr.empresa_id
+        LEFT JOIN colaboradores c
+            ON c.usuario_id = u.id
+
+        LEFT JOIN pessoas pp
+            ON pp.id = pr.pessoa_id
+           AND pp.empresa_id = pr.empresa_id
+
+        LEFT JOIN pessoas pc
+            ON pc.id = c.pessoa_id
+           AND pc.empresa_id = c.empresa_id
 
         LEFT JOIN empresas e
-            ON e.id = COALESCE(a.empresa_id, pr.empresa_id)
+            ON e.id = COALESCE(a.empresa_id, pr.empresa_id, c.empresa_id)
 
         WHERE t.token_hash = :token_hash
         LIMIT 1
@@ -118,14 +130,12 @@ function tokenEstaDisponivel(array $contexto): bool
 
 function obterTipoContexto(array $contexto): ?string
 {
-    $temAdministrador = !empty($contexto['administrador_id']);
-    $temProfissional = !empty($contexto['profissional_id']);
+    $tipos = [];
+    if (!empty($contexto['administrador_id'])) $tipos[] = 'administrador';
+    if (!empty($contexto['profissional_id'])) $tipos[] = 'profissional';
+    if (!empty($contexto['colaborador_id'])) $tipos[] = 'colaborador';
 
-    if ($temAdministrador === $temProfissional) {
-        return null;
-    }
-
-    return $temAdministrador ? 'administrador' : 'profissional';
+    return count($tipos) === 1 ? $tipos[0] : null;
 }
 
 function contextoPodeSerAtivado(array $contexto, string $tipo): bool
@@ -138,7 +148,13 @@ function contextoPodeSerAtivado(array $contexto, string $tipo): bool
         return (int) ($contexto['administrador_ativo'] ?? 0) !== 1;
     }
 
-    return (int) ($contexto['profissional_ativo'] ?? 0) === 1
+    if ($tipo === 'profissional') {
+        return (int) ($contexto['profissional_ativo'] ?? 0) === 1
+            && (int) ($contexto['pessoa_ativa'] ?? 0) === 1
+            && (int) ($contexto['empresa_ativa'] ?? 0) === 1;
+    }
+
+    return (int) ($contexto['colaborador_ativo'] ?? 0) === 1
         && (int) ($contexto['pessoa_ativa'] ?? 0) === 1
         && (int) ($contexto['empresa_ativa'] ?? 0) === 1;
 }
@@ -337,9 +353,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $erro === '') {
 
                 session_regenerate_id(true);
 
-                $sucesso = $tipoBloqueado === 'profissional'
-                    ? 'Senha criada com sucesso. Seu acesso profissional está ativo e você já pode entrar.'
-                    : 'Senha criada com sucesso. Sua empresa foi ativada e você já pode entrar.';
+                $sucesso = match ($tipoBloqueado) {
+                    'profissional' => 'Senha criada com sucesso. Seu acesso profissional está ativo e você já pode entrar.',
+                    'colaborador' => 'Senha criada com sucesso. Seu acesso de colaborador está ativo e você já pode entrar.',
+                    default => 'Senha criada com sucesso. Sua empresa foi ativada e você já pode entrar.',
+                };
 
                 $tipoContexto = $tipoBloqueado;
             } catch (RuntimeException $e) {
@@ -364,9 +382,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $erro === '') {
 $nome = '';
 if (is_array($contexto)) {
     $nome = trim((string) (
-        $tipoContexto === 'profissional'
-            ? ($contexto['profissional_nome'] ?? '')
-            : ($contexto['administrador_nome'] ?? '')
+        $tipoContexto === 'administrador'
+            ? ($contexto['administrador_nome'] ?? '')
+            : ($contexto['pessoa_nome'] ?? '')
     ));
 }
 ?>
@@ -410,7 +428,9 @@ if (is_array($contexto)) {
         <p>
             <?= $tipoContexto === 'profissional'
                 ? 'Defina a senha que será usada para acessar sua conta profissional no Salão Agenda.'
-                : 'Defina a senha que será usada para acessar sua empresa no Salão Agenda.' ?>
+                : ($tipoContexto === 'colaborador'
+                    ? 'Defina a senha que será usada para acessar sua conta de colaborador no Salão Agenda.'
+                    : 'Defina a senha que será usada para acessar sua empresa no Salão Agenda.') ?>
         </p>
 
         <?php if ($erro !== ''): ?>
@@ -429,7 +449,7 @@ if (is_array($contexto)) {
             <input type="password" id="confirmacao_senha" name="confirmacao_senha" minlength="12" maxlength="255" autocomplete="new-password" required>
 
             <button type="submit">
-                <?= $tipoContexto === 'profissional' ? 'Criar senha e ativar acesso' : 'Criar senha e ativar empresa' ?>
+                <?= in_array($tipoContexto, ['profissional', 'colaborador'], true) ? 'Criar senha e ativar acesso' : 'Criar senha e ativar empresa' ?>
             </button>
         </form>
     <?php endif; ?>

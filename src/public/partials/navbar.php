@@ -4,6 +4,15 @@ $usuarioNome = $_SESSION['user_name'] ?? 'Administrador';
 
 $empresaNome = $_SESSION['empresa_nome'] ?? 'Minha empresa';
 
+$navbarContexto = (string) ($_SESSION['contexto'] ?? '');
+
+$navbarUsuarioPerfil = match ($navbarContexto) {
+    'administrador' => 'Administrador',
+    'colaborador' => 'Colaborador',
+    'profissional' => 'Profissional',
+    default => 'Usuário',
+};
+
 $iniciais = '';
 
 $partesNome = preg_split(
@@ -79,7 +88,11 @@ if (count($partesNome) > 1) {
                         </strong>
 
                         <small>
-                            Administrador
+                            <?= htmlspecialchars(
+                                $navbarUsuarioPerfil,
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>
                         </small>
 
                     </div>

@@ -232,7 +232,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmtProfissional->execute([':usuario_id' => $usuarioId]);
                     $profissionais = $stmtProfissional->fetchAll(PDO::FETCH_ASSOC);
 
-                    $contextos = count($administradores) + count($profissionais);
+                    $stmtColaborador = $pdo->prepare(
+                        'SELECT
+                            c.id AS colaborador_id,
+                            c.pessoa_id,
+                            c.empresa_id,
+                            c.cargo,
+                            c.pode_agenda,
+                            c.pode_clientes,
+                            c.pode_profissionais,
+                            c.pode_servicos,
+                            c.pode_financeiro,
+                            c.pode_relatorios,
+                            c.pode_configuracoes,
+                            c.ativo AS colaborador_ativo,
+                            p.nome_completo,
+                            p.ativo AS pessoa_ativa,
+                            e.nome_fantasia AS empresa_nome,
+                            e.ativo AS empresa_ativa
+                         FROM colaboradores c
+                         INNER JOIN pessoas p
+                           ON p.id = c.pessoa_id
+                          AND p.empresa_id = c.empresa_id
+                         INNER JOIN empresas e
+                           ON e.id = c.empresa_id
+                         WHERE c.usuario_id = :usuario_id
+                         LIMIT 2'
+                    );
+                    $stmtColaborador->execute([':usuario_id' => $usuarioId]);
+                    $colaboradores = $stmtColaborador->fetchAll(PDO::FETCH_ASSOC);
+
+                    $contextos = count($administradores) + count($profissionais) + count($colaboradores);
 
                     if ($contextos !== 1) {
                         $erro = 'Não foi possível determinar o contexto desta conta.';
@@ -268,7 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             header('Location: dashboard.php');
                             exit;
                         }
-                    } else {
+                    } elseif ($profissionais) {
                         $contexto = $profissionais[0];
 
                         if (
@@ -290,7 +320,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $_SESSION['pessoa_id'] = (int) $contexto['pessoa_id'];
                             $_SESSION['contexto'] = 'profissional';
 
-                            unset($_SESSION['administrador_id']);
+                            unset(
+                                $_SESSION['administrador_id'],
+                                $_SESSION['colaborador_id'],
+                                $_SESSION['permissoes_colaborador']
+                            );
 
                             $update = $pdo->prepare(
                                 'UPDATE usuarios
@@ -300,6 +334,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $update->execute([':id' => $usuarioId]);
 
                             header('Location: dashboard-profissional.php');
+                            exit;
+                        }
+                    } else {
+                        $contexto = $colaboradores[0];
+
+                        if (
+                            (int) $contexto['colaborador_ativo'] !== 1
+                            || (int) $contexto['pessoa_ativa'] !== 1
+                            || (int) $contexto['empresa_ativa'] !== 1
+                        ) {
+                            $erro = 'Esta conta está desativada.';
+                        } else {
+                            limparFalhasLogin($pdo, $usuarioId, $ipHash);
+                            session_regenerate_id(true);
+
+                            $_SESSION['user_id'] = $usuarioId;
+                            $_SESSION['user_email'] = (string) $usuario['email'];
+                            $_SESSION['user_name'] = (string) $contexto['nome_completo'];
+                            $_SESSION['empresa_id'] = (int) $contexto['empresa_id'];
+                            $_SESSION['empresa_nome'] = (string) $contexto['empresa_nome'];
+                            $_SESSION['colaborador_id'] = (int) $contexto['colaborador_id'];
+                            $_SESSION['pessoa_id'] = (int) $contexto['pessoa_id'];
+                            $_SESSION['contexto'] = 'colaborador';
+                            $_SESSION['permissoes_colaborador'] = [
+                                'agenda' => (int) $contexto['pode_agenda'] === 1,
+                                'clientes' => (int) $contexto['pode_clientes'] === 1,
+                                'profissionais' => (int) $contexto['pode_profissionais'] === 1,
+                                'servicos' => (int) $contexto['pode_servicos'] === 1,
+                                'financeiro' => (int) $contexto['pode_financeiro'] === 1,
+                                'relatorios' => (int) $contexto['pode_relatorios'] === 1,
+                                'configuracoes' => (int) $contexto['pode_configuracoes'] === 1,
+                            ];
+
+                            unset($_SESSION['administrador_id'], $_SESSION['profissional_id']);
+
+                            $update = $pdo->prepare(
+                                'UPDATE usuarios
+                                 SET ultimo_acesso_em = NOW()
+                                 WHERE id = :id'
+                            );
+                            $update->execute([':id' => $usuarioId]);
+
+                            header('Location: dashboard.php');
                             exit;
                         }
                     }

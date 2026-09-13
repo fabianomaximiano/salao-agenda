@@ -23,14 +23,152 @@ function exigirLogin(): void
     }
 }
 
+function negarAcesso(): void
+{
+    http_response_code(403);
+
+    $scriptAtual = basename((string) ($_SERVER['PHP_SELF'] ?? ''));
+
+    if ($scriptAtual === 'acesso-negado.php') {
+        exit('Acesso negado.');
+    }
+
+    header('Location: acesso-negado.php');
+    exit;
+}
+
 function exigirAdministrador(): void
 {
     exigirLogin();
 
     if (($_SESSION['contexto'] ?? '') !== 'administrador') {
-        http_response_code(403);
-        exit('Acesso negado.');
+        negarAcesso();
     }
+}
+
+function exigirColaborador(): void
+{
+    exigirLogin();
+
+    if (
+        ($_SESSION['contexto'] ?? '') !== 'colaborador'
+        || empty($_SESSION['colaborador_id'])
+        || empty($_SESSION['pessoa_id'])
+    ) {
+        negarAcesso();
+    }
+}
+
+function permissoesColaboradorAtuais(): array
+{
+    static $cache = null;
+
+    $vazias = [
+        'agenda' => false,
+        'clientes' => false,
+        'profissionais' => false,
+        'servicos' => false,
+        'financeiro' => false,
+        'relatorios' => false,
+        'configuracoes' => false,
+    ];
+
+    if (($_SESSION['contexto'] ?? '') !== 'colaborador') {
+        return $vazias;
+    }
+
+    if ($cache !== null) {
+        return $cache;
+    }
+
+    $colaboradorId = (int) ($_SESSION['colaborador_id'] ?? 0);
+    $empresaId = (int) ($_SESSION['empresa_id'] ?? 0);
+    $usuarioId = (int) ($_SESSION['user_id'] ?? 0);
+
+    if ($colaboradorId <= 0 || $empresaId <= 0 || $usuarioId <= 0) {
+        return $cache = $vazias;
+    }
+
+    require_once __DIR__ . '/db.php';
+
+    $pdo = getDB();
+
+    $stmt = $pdo->prepare(
+        'SELECT
+            pode_agenda,
+            pode_clientes,
+            pode_profissionais,
+            pode_servicos,
+            pode_financeiro,
+            pode_relatorios,
+            pode_configuracoes
+         FROM colaboradores
+         WHERE id = :colaborador_id
+           AND empresa_id = :empresa_id
+           AND usuario_id = :usuario_id
+           AND ativo = 1
+         LIMIT 1'
+    );
+
+    $stmt->execute([
+        ':colaborador_id' => $colaboradorId,
+        ':empresa_id' => $empresaId,
+        ':usuario_id' => $usuarioId,
+    ]);
+
+    $registro = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$registro) {
+        return $cache = $vazias;
+    }
+
+    $cache = [
+        'agenda' => (int) $registro['pode_agenda'] === 1,
+        'clientes' => (int) $registro['pode_clientes'] === 1,
+        'profissionais' => (int) $registro['pode_profissionais'] === 1,
+        'servicos' => (int) $registro['pode_servicos'] === 1,
+        'financeiro' => (int) $registro['pode_financeiro'] === 1,
+        'relatorios' => (int) $registro['pode_relatorios'] === 1,
+        'configuracoes' => (int) $registro['pode_configuracoes'] === 1,
+    ];
+
+    $_SESSION['permissoes_colaborador'] = $cache;
+
+    return $cache;
+}
+
+function colaboradorPode(string $permissao): bool
+{
+    $permissoes = permissoesColaboradorAtuais();
+
+    return array_key_exists($permissao, $permissoes)
+        && $permissoes[$permissao] === true;
+}
+
+function exigirPermissaoColaborador(string $permissao): void
+{
+    exigirColaborador();
+
+    if (!colaboradorPode($permissao)) {
+        negarAcesso();
+    }
+}
+
+function exigirAcesso(string $permissao): void
+{
+    exigirLogin();
+
+    $contexto = (string) ($_SESSION['contexto'] ?? '');
+
+    if ($contexto === 'administrador') {
+        return;
+    }
+
+    if ($contexto === 'colaborador' && colaboradorPode($permissao)) {
+        return;
+    }
+
+    negarAcesso();
 }
 
 function exigirProfissional(): void
@@ -42,8 +180,7 @@ function exigirProfissional(): void
         || empty($_SESSION['profissional_id'])
         || empty($_SESSION['pessoa_id'])
     ) {
-        http_response_code(403);
-        exit('Acesso negado.');
+        negarAcesso();
     }
 }
 

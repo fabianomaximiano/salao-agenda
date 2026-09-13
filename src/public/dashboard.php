@@ -5,7 +5,14 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 
-exigirAdministrador();
+exigirLogin();
+
+$contextoAtual = (string) ($_SESSION['contexto'] ?? '');
+
+if (!in_array($contextoAtual, ['administrador', 'colaborador'], true)) {
+    http_response_code(403);
+    exit('Acesso negado.');
+}
 
 $empresaId = (int) $_SESSION['empresa_id'];
 $pdo = getDB();
@@ -194,12 +201,14 @@ require __DIR__ . '/partials/navbar.php';
             <p>Visão geral da operação da sua empresa.</p>
         </div>
 
-        <div class="mt-3 mt-md-0">
-            <a href="agenda.php" class="btn btn-primary">Ver agenda</a>
-        </div>
+        <?php if ($contextoAtual === 'administrador' || colaboradorPode('agenda')): ?>
+            <div class="mt-3 mt-md-0">
+                <a href="agenda.php" class="btn btn-primary">Ver agenda</a>
+            </div>
+        <?php endif; ?>
     </div>
 
-    <?php if ($percentual < 100): ?>
+    <?php if ($contextoAtual === 'administrador' && $percentual < 100): ?>
         <section class="app-card dashboard-onboarding mb-4" aria-labelledby="onboardingTitulo">
             <div class="app-card-body">
                 <div class="d-md-flex justify-content-between align-items-start mb-3">
@@ -270,36 +279,45 @@ require __DIR__ . '/partials/navbar.php';
     <?php endif; ?>
 
     <div class="row">
-        <div class="col-12 col-sm-6 col-xl-3 mb-4">
-            <div class="app-stat-card">
-                <p class="app-stat-label">Agendamentos hoje</p>
-                <p class="app-stat-value"><?= $totalAgendamentosHoje ?></p>
+        <?php if ($contextoAtual === 'administrador' || colaboradorPode('agenda')): ?>
+            <div class="col-12 col-sm-6 col-xl-3 mb-4">
+                <div class="app-stat-card">
+                    <p class="app-stat-label">Agendamentos hoje</p>
+                    <p class="app-stat-value"><?= $totalAgendamentosHoje ?></p>
+                </div>
             </div>
-        </div>
+        <?php endif; ?>
 
-        <div class="col-12 col-sm-6 col-xl-3 mb-4">
-            <div class="app-stat-card">
-                <p class="app-stat-label">Clientes</p>
-                <p class="app-stat-value"><?= $totalClientes ?></p>
+        <?php if ($contextoAtual === 'administrador' || colaboradorPode('clientes')): ?>
+            <div class="col-12 col-sm-6 col-xl-3 mb-4">
+                <div class="app-stat-card">
+                    <p class="app-stat-label">Clientes</p>
+                    <p class="app-stat-value"><?= $totalClientes ?></p>
+                </div>
             </div>
-        </div>
+        <?php endif; ?>
 
-        <div class="col-12 col-sm-6 col-xl-3 mb-4">
-            <div class="app-stat-card">
-                <p class="app-stat-label">Profissionais</p>
-                <p class="app-stat-value"><?= $totalProfissionais ?></p>
+        <?php if ($contextoAtual === 'administrador' || colaboradorPode('profissionais')): ?>
+            <div class="col-12 col-sm-6 col-xl-3 mb-4">
+                <div class="app-stat-card">
+                    <p class="app-stat-label">Profissionais</p>
+                    <p class="app-stat-value"><?= $totalProfissionais ?></p>
+                </div>
             </div>
-        </div>
+        <?php endif; ?>
 
-        <div class="col-12 col-sm-6 col-xl-3 mb-4">
-            <div class="app-stat-card">
-                <p class="app-stat-label">Serviços</p>
-                <p class="app-stat-value"><?= $totalServicos ?></p>
+        <?php if ($contextoAtual === 'administrador' || colaboradorPode('servicos')): ?>
+            <div class="col-12 col-sm-6 col-xl-3 mb-4">
+                <div class="app-stat-card">
+                    <p class="app-stat-label">Serviços</p>
+                    <p class="app-stat-value"><?= $totalServicos ?></p>
+                </div>
             </div>
-        </div>
+        <?php endif; ?>
     </div>
 
     <div class="row">
+        <?php if ($contextoAtual === 'administrador' || colaboradorPode('agenda')): ?>
         <div class="col-12 col-xl-8 mb-4">
             <div class="app-card">
                 <div class="app-card-header d-flex justify-content-between align-items-center">
@@ -316,6 +334,7 @@ require __DIR__ . '/partials/navbar.php';
                 </div>
             </div>
         </div>
+        <?php endif; ?>
 
         <div class="col-12 col-xl-4 mb-4">
             <div class="app-card">
@@ -325,18 +344,29 @@ require __DIR__ . '/partials/navbar.php';
 
                 <div class="app-card-body">
                     <div class="dashboard-actions">
-                        <a href="cadastro-profissional.php" class="btn btn-outline-primary btn-block text-left">
-                            Cadastrar profissional
-                        </a>
-                        <a href="cadastro-servico.php" class="btn btn-outline-primary btn-block text-left">
-                            Cadastrar serviço
-                        </a>
-                        <a href="clientes.php" class="btn btn-outline-secondary btn-block text-left">
-                            Ver clientes
-                        </a>
-                        <a href="agenda.php" class="btn btn-outline-secondary btn-block text-left">
-                            Abrir agenda
-                        </a>
+                        <?php if ($contextoAtual === 'administrador' || colaboradorPode('profissionais')): ?>
+                            <a href="cadastro-profissional.php" class="btn btn-outline-primary btn-block text-left">
+                                Cadastrar profissional
+                            </a>
+                        <?php endif; ?>
+
+                        <?php if ($contextoAtual === 'administrador' || colaboradorPode('servicos')): ?>
+                            <a href="cadastro-servico.php" class="btn btn-outline-primary btn-block text-left">
+                                Cadastrar serviço
+                            </a>
+                        <?php endif; ?>
+
+                        <?php if ($contextoAtual === 'administrador' || colaboradorPode('clientes')): ?>
+                            <a href="clientes.php" class="btn btn-outline-secondary btn-block text-left">
+                                Ver clientes
+                            </a>
+                        <?php endif; ?>
+
+                        <?php if ($contextoAtual === 'administrador' || colaboradorPode('agenda')): ?>
+                            <a href="agenda.php" class="btn btn-outline-secondary btn-block text-left">
+                                Abrir agenda
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>

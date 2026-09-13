@@ -97,12 +97,43 @@ function buscarProfissionalPendente(PDO $pdo, int $usuarioId): array|false
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
+
+function buscarColaboradorPendente(PDO $pdo, int $usuarioId): array|false
+{
+    $stmt = $pdo->prepare(
+        'SELECT
+            u.id AS usuario_id,
+            u.email,
+            u.ativo AS usuario_ativo,
+            c.id AS colaborador_id,
+            c.ativo AS contexto_ativo,
+            p.nome_completo,
+            p.ativo AS pessoa_ativa,
+            e.id AS empresa_id,
+            e.nome_fantasia,
+            e.ativo AS empresa_ativa
+         FROM usuarios u
+         INNER JOIN colaboradores c ON c.usuario_id = u.id
+         INNER JOIN pessoas p ON p.id = c.pessoa_id AND p.empresa_id = c.empresa_id
+         INNER JOIN empresas e ON e.id = c.empresa_id
+         WHERE u.id = :usuario_id
+         LIMIT 1'
+    );
+    $stmt->execute([':usuario_id' => $usuarioId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
 if ($tokenReferencia !== '') {
     $modo = 'profissional';
 
     try {
         $usuarioId = $tokenService->validar($pdo, $tokenReferencia);
         $usuario = buscarProfissionalPendente($pdo, $usuarioId);
+
+        if (!$usuario) {
+            $usuario = buscarColaboradorPendente($pdo, $usuarioId);
+            $modo = 'colaborador';
+        }
 
         if (!$usuario) {
             throw new RuntimeException('Convite de acesso inválido.');
@@ -173,11 +204,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $usuario) {
             $nome = (string) $usuario['nome_completo'];
             $empresa = (string) $usuario['nome_fantasia'];
 
-            if ($modo === 'profissional') {
+            if ($modo === 'profissional' || $modo === 'colaborador') {
                 ob_start();
-                require dirname(__DIR__) . '/templates/emails/acesso-profissional-ativacao.php';
+                require dirname(__DIR__) . ($modo === 'profissional'
+                    ? '/templates/emails/acesso-profissional-ativacao.php'
+                    : '/templates/emails/acesso-colaborador-ativacao.php');
                 $html = (string) ob_get_clean();
-                $assunto = 'Crie sua senha profissional - Salão Agenda';
+                $assunto = $modo === 'profissional' ? 'Crie sua senha profissional - Salão Agenda' : 'Crie sua senha de colaborador - Salão Agenda';
                 $texto = "Olá, {$nome}.\n\nSeu e-mail foi confirmado.\n\nCrie sua senha através do link:\n{$linkAtivacao}\n\nEste link é temporário e de uso único.";
             } else {
                 $dados = [
@@ -265,7 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $usuario) {
 
         <form method="post" autocomplete="off">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_confirmacao_codigo'], ENT_QUOTES, 'UTF-8') ?>">
-            <?php if ($modo === 'profissional'): ?>
+            <?php if ($modo === 'profissional' || $modo === 'colaborador'): ?>
                 <input type="hidden" name="token" value="<?= htmlspecialchars($tokenReferencia, ENT_QUOTES, 'UTF-8') ?>">
             <?php endif; ?>
 
@@ -337,7 +370,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $usuario) {
                 'X-CSRF-Token': <?= json_encode($_SESSION['csrf_confirmacao_codigo'], JSON_UNESCAPED_UNICODE) ?>
             };
 
-            <?php if ($modo === 'profissional'): ?>
+            <?php if ($modo === 'profissional' || $modo === 'colaborador'): ?>
             headers['X-Activation-Token'] = <?= json_encode($tokenReferencia, JSON_UNESCAPED_UNICODE) ?>;
             <?php endif; ?>
 

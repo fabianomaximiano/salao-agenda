@@ -1,103 +1,67 @@
 <?php
 
 $currentPage = basename($_SERVER['PHP_SELF']);
+$contextoAtual = (string) ($_SESSION['contexto'] ?? '');
+$ehAdministrador = $contextoAtual === 'administrador';
+$ehColaborador = $contextoAtual === 'colaborador';
 
 function menuAtivo(array $paginas): string
 {
     global $currentPage;
+    return in_array($currentPage, $paginas, true) ? 'active' : '';
+}
 
-    return in_array($currentPage, $paginas, true)
-        ? 'active'
-        : '';
+function podeMenu(string $permissao): bool
+{
+    global $ehAdministrador, $ehColaborador;
+
+    if ($ehAdministrador) {
+        return true;
+    }
+
+    if (!$ehColaborador) {
+        return false;
+    }
+
+    return colaboradorPode($permissao);
 }
 
 ?>
-
 <aside class="app-sidebar">
-
     <div class="app-sidebar-brand">
-
-        <img
-            src="assets/img/logo-placeholder.svg"
-            alt="Agenda"
-        >
-
-        <strong>
-            Agenda
-        </strong>
-
+        <img src="assets/img/logo-placeholder.svg" alt="Agenda">
+        <strong>Agenda</strong>
     </div>
 
-
     <nav class="app-sidebar-nav">
+        <div class="app-sidebar-title">Visão geral</div>
 
-        <div class="app-sidebar-title">
-            Visão geral
-        </div>
+        <a href="dashboard.php" class="app-sidebar-link <?= menuAtivo(['dashboard.php']) ?>">Dashboard</a>
 
-        <a
-            href="dashboard.php"
-            class="app-sidebar-link <?= menuAtivo(['dashboard.php']) ?>"
-        >
-            Dashboard
-        </a>
+        <?php if (podeMenu('agenda')): ?>
+            <a href="agenda.php" class="app-sidebar-link <?= menuAtivo(['agenda.php']) ?>">Agenda</a>
+            <a href="agendamentos.php" class="app-sidebar-link <?= menuAtivo(['agendamentos.php']) ?>">Agendamentos</a>
+        <?php endif; ?>
 
+        <?php if (podeMenu('clientes') || podeMenu('profissionais') || podeMenu('servicos') || $ehAdministrador): ?>
+            <div class="app-sidebar-title mt-3">Cadastros</div>
+        <?php endif; ?>
 
-        <a
-            href="agenda.php"
-            class="app-sidebar-link <?= menuAtivo(['agenda.php']) ?>"
-        >
-            Agenda
-        </a>
+        <?php if (podeMenu('clientes')): ?>
+            <a href="clientes.php" class="app-sidebar-link <?= menuAtivo(['clientes.php']) ?>">Clientes</a>
+        <?php endif; ?>
 
+        <?php if (podeMenu('profissionais')): ?>
+            <a href="profissionais.php" class="app-sidebar-link <?= menuAtivo(['profissionais.php','cadastro-profissional.php']) ?>">Profissionais</a>
+        <?php endif; ?>
 
-        <a
-            href="agendamentos.php"
-            class="app-sidebar-link <?= menuAtivo(['agendamentos.php']) ?>"
-        >
-            Agendamentos
-        </a>
+        <?php if (podeMenu('servicos')): ?>
+            <a href="servicos.php" class="app-sidebar-link <?= menuAtivo(['servicos.php','cadastro-servico.php']) ?>">Serviços</a>
+        <?php endif; ?>
 
-
-        <div class="app-sidebar-title mt-3">
-            Cadastros
-        </div>
-
-
-        <a
-            href="clientes.php"
-            class="app-sidebar-link <?= menuAtivo(['clientes.php']) ?>"
-        >
-            Clientes
-        </a>
-
-
-        <a
-            href="profissionais.php"
-            class="app-sidebar-link <?= menuAtivo([
-                'profissionais.php',
-                'cadastro-profissional.php'
-            ]) ?>"
-        >
-            Profissionais
-        </a>
-
-
-        <a
-            href="servicos.php"
-            class="app-sidebar-link <?= menuAtivo([
-                'servicos.php',
-                'cadastro-servico.php'
-            ]) ?>"
-        >
-            Serviços
-        </a>
-
+        <?php if ($ehAdministrador): ?>
+            <a href="colaboradores.php" class="app-sidebar-link <?= menuAtivo(['colaboradores.php','cadastro-colaborador.php']) ?>">Colaboradores</a>
+        <?php endif; ?>
     </nav>
-
 </aside>
-
-<div
-    class="app-overlay"
-    id="appOverlay"
-></div>
+<div class="app-overlay" id="appOverlay"></div>

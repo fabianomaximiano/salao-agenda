@@ -51,49 +51,39 @@ $codigoService = new CodigoVerificacaoService();
 $tokenService = new TokenAtivacaoService();
 
 $tokenReferencia = strtolower(trim((string) ($_SERVER['HTTP_X_ACTIVATION_TOKEN'] ?? '')));
-$modo = $tokenReferencia !== '' ? 'profissional' : 'administrador';
+$modo = $tokenReferencia !== '' ? 'convite' : 'administrador';
 $usuarioId = 0;
 $usuario = false;
 
 try {
-    if ($modo === 'profissional') {
+    if ($modo === 'convite') {
         $usuarioId = $tokenService->validar($pdo, $tokenReferencia);
 
         $stmt = $pdo->prepare(
-            'SELECT
-                u.email,
-                u.ativo AS usuario_ativo,
-                pr.ativo AS profissional_ativo,
-                p.nome_completo,
-                p.ativo AS pessoa_ativa,
-                e.nome_fantasia,
-                e.ativo AS empresa_ativa
+            'SELECT u.email, u.ativo AS usuario_ativo,
+                    COALESCE(pr.ativo, c.ativo) AS contexto_ativo,
+                    COALESCE(pp.nome_completo, pc.nome_completo) AS nome_completo,
+                    COALESCE(pp.ativo, pc.ativo) AS pessoa_ativa,
+                    e.nome_fantasia, e.ativo AS empresa_ativa,
+                    CASE WHEN pr.id IS NOT NULL THEN "profissional" ELSE "colaborador" END AS tipo
              FROM usuarios u
-             INNER JOIN profissionais pr
-               ON pr.usuario_id = u.id
-             INNER JOIN pessoas p
-               ON p.id = pr.pessoa_id
-              AND p.empresa_id = pr.empresa_id
-             INNER JOIN empresas e
-               ON e.id = pr.empresa_id
-             WHERE u.id = :usuario_id
+             LEFT JOIN profissionais pr ON pr.usuario_id=u.id
+             LEFT JOIN colaboradores c ON c.usuario_id=u.id
+             LEFT JOIN pessoas pp ON pp.id=pr.pessoa_id AND pp.empresa_id=pr.empresa_id
+             LEFT JOIN pessoas pc ON pc.id=c.pessoa_id AND pc.empresa_id=c.empresa_id
+             INNER JOIN empresas e ON e.id=COALESCE(pr.empresa_id,c.empresa_id)
+             WHERE u.id=:usuario_id
+               AND ((pr.id IS NOT NULL AND c.id IS NULL) OR (pr.id IS NULL AND c.id IS NOT NULL))
              LIMIT 1'
         );
         $stmt->execute([':usuario_id' => $usuarioId]);
         $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$usuario) {
-            responder(false, 'Não foi possível localizar o acesso pendente.', 404);
-        }
-
-        if (
-            (int) $usuario['usuario_ativo'] === 1
-            || (int) $usuario['profissional_ativo'] !== 1
-            || (int) $usuario['pessoa_ativa'] !== 1
-            || (int) $usuario['empresa_ativa'] !== 1
-        ) {
+        if (!$usuario) responder(false, 'Não foi possível localizar o acesso pendente.', 404);
+        if ((int)$usuario['usuario_ativo']===1 || (int)$usuario['contexto_ativo']!==1 || (int)$usuario['pessoa_ativa']!==1 || (int)$usuario['empresa_ativa']!==1) {
             responder(false, 'Este acesso não está disponível para ativação.', 409);
         }
+        $modo = (string)$usuario['tipo'];
     } else {
         $usuarioId = (int) ($_SESSION['cadastro_usuario_id'] ?? 0);
 
@@ -146,16 +136,20 @@ try {
     $empresa = (string) $usuario['nome_fantasia'];
     $validadeMinutos = 10;
 
-    if ($modo === 'profissional') {
+    if ($modo === 'profissional' || $modo === 'colaborador') {
         $appUrl = rtrim((string) (getenv('APP_URL') ?: 'http://localhost:8096'), '/');
         $linkConfirmacao = $appUrl
             . '/confirmar-codigo.php?token='
             . urlencode($tokenReferencia);
 
         ob_start();
-        require dirname(__DIR__) . '/templates/emails/acesso-profissional-codigo.php';
+        require dirname(__DIR__) . ($modo === 'profissional'
+            ? '/templates/emails/acesso-profissional-codigo.php'
+            : '/templates/emails/acesso-colaborador-codigo.php');
         $html = (string) ob_get_clean();
-        $assunto = 'Seu código de acesso profissional - Salão Agenda';
+        $assunto = $modo === 'profissional'
+            ? 'Seu código de acesso profissional - Salão Agenda'
+            : 'Seu código de acesso de colaborador - Salão Agenda';
         $texto = "Olá, {$nome}.\n\nSeu novo código de verificação é: {$codigo}\n\nAbra este link para confirmar seu e-mail:\n{$linkConfirmacao}\n\nEle expira em 10 minutos.";
     } else {
         ob_start();
