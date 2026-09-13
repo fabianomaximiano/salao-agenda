@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Plataforma de Agendamento e Gestão de Atendimentos
--- schema.sql - Versão 2.3
--- Modelo lógico v2.3 - MySQL 8.0
+-- schema.sql - Versão 2.4
+-- Modelo lógico v2.4 - MySQL 8.0
 --
 -- IMPORTANTE:
 -- Este arquivo representa a estrutura-alvo do banco.
@@ -482,6 +482,41 @@ CREATE TABLE profissionais (
 
 
 -- ============================================================================
+-- 6.1 COLABORADORES ADMINISTRATIVOS
+-- ============================================================================
+
+CREATE TABLE colaboradores (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    empresa_id BIGINT UNSIGNED NOT NULL,
+    pessoa_id BIGINT UNSIGNED NOT NULL,
+    usuario_id BIGINT UNSIGNED NOT NULL,
+    cargo VARCHAR(120) NULL,
+    pode_agenda TINYINT(1) NOT NULL DEFAULT 1,
+    pode_clientes TINYINT(1) NOT NULL DEFAULT 1,
+    pode_profissionais TINYINT(1) NOT NULL DEFAULT 1,
+    pode_servicos TINYINT(1) NOT NULL DEFAULT 1,
+    pode_financeiro TINYINT(1) NOT NULL DEFAULT 0,
+    pode_relatorios TINYINT(1) NOT NULL DEFAULT 0,
+    pode_configuracoes TINYINT(1) NOT NULL DEFAULT 0,
+    ativo TINYINT(1) NOT NULL DEFAULT 1,
+    criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_colaboradores_empresa
+        FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE,
+    CONSTRAINT fk_colaboradores_pessoa_empresa
+        FOREIGN KEY (pessoa_id, empresa_id) REFERENCES pessoas(id, empresa_id) ON DELETE CASCADE,
+    CONSTRAINT fk_colaboradores_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE RESTRICT,
+
+    UNIQUE KEY uq_colaboradores_empresa_pessoa (empresa_id, pessoa_id),
+    UNIQUE KEY uq_colaboradores_empresa_usuario (empresa_id, usuario_id),
+    KEY idx_colaboradores_empresa_ativo (empresa_id, ativo),
+    KEY idx_colaboradores_usuario (usuario_id)
+) ENGINE=InnoDB;
+
+
+-- ============================================================================
 -- 7. INTEGRAÇÕES DE CALENDÁRIO DO PROFISSIONAL
 -- ============================================================================
 --
@@ -627,6 +662,42 @@ CREATE TABLE empresa_horarios (
 ) ENGINE=InnoDB;
 
 
+-- Exceções de funcionamento para datas específicas.
+CREATE TABLE empresa_excecoes (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    empresa_id BIGINT UNSIGNED NOT NULL,
+    data_excecao DATE NOT NULL,
+    tipo ENUM('fechado', 'horario_especial') NOT NULL,
+    descricao VARCHAR(255) NULL,
+    ativo TINYINT(1) NOT NULL DEFAULT 1,
+    criado_por_usuario_id BIGINT UNSIGNED NULL,
+    criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_empresa_excecoes_empresa
+        FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE,
+    CONSTRAINT fk_empresa_excecoes_usuario
+        FOREIGN KEY (criado_por_usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL,
+
+    UNIQUE KEY uq_empresa_excecoes_empresa_data (empresa_id, data_excecao),
+    KEY idx_empresa_excecoes_consulta (empresa_id, data_excecao, ativo)
+) ENGINE=InnoDB;
+
+CREATE TABLE empresa_excecao_periodos (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    empresa_excecao_id BIGINT UNSIGNED NOT NULL,
+    hora_inicio TIME NOT NULL,
+    hora_fim TIME NOT NULL,
+
+    CONSTRAINT fk_empresa_excecao_periodos_excecao
+        FOREIGN KEY (empresa_excecao_id) REFERENCES empresa_excecoes(id) ON DELETE CASCADE,
+    CONSTRAINT chk_empresa_excecao_periodos_intervalo
+        CHECK (hora_fim > hora_inicio),
+
+    KEY idx_empresa_excecao_periodos_excecao (empresa_excecao_id, hora_inicio)
+) ENGINE=InnoDB;
+
+
 CREATE TABLE profissional_horarios (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     profissional_id BIGINT UNSIGNED NOT NULL,
@@ -740,8 +811,18 @@ CREATE TABLE agendamento_servicos (
     agendamento_id BIGINT UNSIGNED NOT NULL,
     servico_id BIGINT UNSIGNED NOT NULL,
     profissional_id BIGINT UNSIGNED NOT NULL,
+    status ENUM(
+        'agendado',
+        'confirmado',
+        'em_atendimento',
+        'concluido',
+        'cancelado',
+        'nao_compareceu'
+    ) NOT NULL DEFAULT 'agendado',
     inicio DATETIME NOT NULL,
     fim DATETIME NOT NULL,
+    iniciado_em DATETIME NULL,
+    concluido_em DATETIME NULL,
     duracao_minutos SMALLINT UNSIGNED NOT NULL,
     valor DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     ordem SMALLINT UNSIGNED NOT NULL DEFAULT 1,
@@ -765,7 +846,10 @@ CREATE TABLE agendamento_servicos (
     UNIQUE KEY uq_agendamento_servicos_ordem (agendamento_id, ordem),
     KEY idx_agendamento_servicos_profissional_periodo
         (profissional_id, inicio, fim),
-    KEY idx_agendamento_servicos_servico (servico_id)
+    KEY idx_agendamento_servicos_servico (servico_id),
+    KEY idx_agendamento_servicos_profissional_status_inicio
+        (profissional_id, status, inicio),
+    KEY idx_agendamento_servicos_status_inicio (status, inicio)
 ) ENGINE=InnoDB;
 
 
