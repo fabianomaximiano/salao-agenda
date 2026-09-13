@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../services/CodigoVerificacaoService.php';
 require_once __DIR__ . '/../../services/TokenAtivacaoService.php';
 require_once __DIR__ . '/../../services/EmailService.php';
+require_once __DIR__ . '/../../services/ImagemProfissionalService.php';
 
 exigirAdministrador();
 
@@ -455,10 +456,19 @@ if ($acao === 'atualizar') {
     }
 
     $stmt = $pdo->prepare(
-        'SELECT id, pessoa_id, usuario_id
-         FROM profissionais
-         WHERE id = :id
-           AND empresa_id = :empresa_id
+        'SELECT
+            pr.id,
+            pr.pessoa_id,
+            pr.usuario_id,
+            pr.foto_url,
+            p.cpf AS cpf_atual,
+            p.data_nascimento AS data_nascimento_atual
+         FROM profissionais pr
+         INNER JOIN pessoas p
+           ON p.id = pr.pessoa_id
+          AND p.empresa_id = pr.empresa_id
+         WHERE pr.id = :id
+           AND pr.empresa_id = :empresa_id
          LIMIT 1'
     );
     $stmt->execute([
@@ -474,8 +484,16 @@ if ($acao === 'atualizar') {
 }
 
 $nomeCompleto = trim((string) ($_POST['nome_completo'] ?? ''));
-$cpfRaw = trim((string) ($_POST['cpf'] ?? ''));
-$dataNascimento = trim((string) ($_POST['data_nascimento'] ?? ''));
+
+if ($acao === 'atualizar') {
+    // CPF e data de nascimento são dados cadastrais imutáveis na edição operacional.
+    // Mesmo que sejam enviados manualmente no POST, preservamos os valores do banco.
+    $cpfRaw = trim((string) ($profissionalAtual['cpf_atual'] ?? ''));
+    $dataNascimento = trim((string) ($profissionalAtual['data_nascimento_atual'] ?? ''));
+} else {
+    $cpfRaw = trim((string) ($_POST['cpf'] ?? ''));
+    $dataNascimento = trim((string) ($_POST['data_nascimento'] ?? ''));
+}
 $genero = trim((string) ($_POST['genero'] ?? 'nao_informado'));
 $email = mb_strtolower(trim((string) ($_POST['email'] ?? '')));
 $telefone = trim((string) ($_POST['telefone'] ?? ''));
@@ -705,6 +723,27 @@ if ($erros) {
     redirecionarCadastroProfissional($acao === 'atualizar' ? $profissionalId : null);
 }
 
+$fotoAtual = $acao === 'atualizar' && is_string($profissionalAtual['foto_url'] ?? null)
+    ? $profissionalAtual['foto_url']
+    : null;
+$arquivosNovaFoto = [];
+$novaFotoUrl = null;
+
+if (isset($_FILES['foto']) && is_array($_FILES['foto'])) {
+    try {
+        $arquivosNovaFoto = ImagemProfissionalService::processarUpload($_FILES['foto'], $empresaId);
+        $novaFotoUrl = isset($arquivosNovaFoto['g']['url']) && is_string($arquivosNovaFoto['g']['url'])
+            ? $arquivosNovaFoto['g']['url']
+            : null;
+    } catch (Throwable $e) {
+        $erros['foto'] = $e->getMessage();
+        flashProfissional('danger', 'Revise a foto do profissional.', $erros, $old);
+        redirecionarCadastroProfissional($acao === 'atualizar' ? $profissionalId : null);
+    }
+}
+
+$fotoParaSalvar = $novaFotoUrl ?? $fotoAtual;
+
 $pdo->beginTransaction();
 
 try {
@@ -749,6 +788,7 @@ try {
                 usuario_id,
                 cargo,
                 descricao,
+                foto_url,
                 ativo
              ) VALUES (
                 :empresa_id,
@@ -756,6 +796,7 @@ try {
                 NULL,
                 :cargo,
                 :descricao,
+                :foto_url,
                 :ativo
              )'
         );
@@ -764,6 +805,7 @@ try {
             ':pessoa_id' => $pessoaId,
             ':cargo' => $cargo !== '' ? $cargo : null,
             ':descricao' => $descricao !== '' ? $descricao : null,
+            ':foto_url' => $fotoParaSalvar,
             ':ativo' => $ativo,
         ]);
 
@@ -797,6 +839,7 @@ try {
             'UPDATE profissionais
              SET cargo = :cargo,
                  descricao = :descricao,
+                 foto_url = :foto_url,
                  ativo = :ativo
              WHERE id = :id
                AND empresa_id = :empresa_id'
@@ -804,6 +847,7 @@ try {
         $stmtProfissional->execute([
             ':cargo' => $cargo !== '' ? $cargo : null,
             ':descricao' => $descricao !== '' ? $descricao : null,
+            ':foto_url' => $fotoParaSalvar,
             ':ativo' => $ativo,
             ':id' => $profissionalId,
             ':empresa_id' => $empresaId,
@@ -913,6 +957,8 @@ try {
         $pdo->rollBack();
     }
 
+    ImagemProfissionalService::excluirArquivosGerados($arquivosNovaFoto);
+
     if ($e instanceof PDOException && $e->getCode() === '23000') {
         flashProfissional(
             'danger',
@@ -924,6 +970,10 @@ try {
     }
 
     throw $e;
+}
+
+if ($novaFotoUrl !== null && $fotoAtual !== null && $fotoAtual !== $novaFotoUrl) {
+    ImagemProfissionalService::excluirPorUrl($fotoAtual, $empresaId);
 }
 
 $_SESSION['csrf_cadastro_profissional'] = bin2hex(random_bytes(32));

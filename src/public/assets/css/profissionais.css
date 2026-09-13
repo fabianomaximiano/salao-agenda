@@ -1,19 +1,158 @@
-.profissionais-table th,
-.profissionais-table td {
-    vertical-align: middle;
+.profissionais-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 22px;
 }
 
-.profissionais-servicos-resumo {
-    max-width: 420px;
-    white-space: normal;
+.profissional-card {
+    position: relative;
+    min-width: 0;
+    padding: 26px 22px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid #e9ecef;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, .06);
+    transition: transform .18s ease, box-shadow .18s ease;
 }
 
-.profissionais-acoes {
+.profissional-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .10);
+}
+
+.profissional-card-inativo {
+    opacity: .72;
+}
+
+.profissional-card-status {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+}
+
+.profissional-foto-moldura {
+    width: 180px;
+    height: 180px;
+    padding: 6px;
+    margin: 8px auto 18px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--marca-primaria), var(--marca-secundaria));
+    box-shadow: 0 8px 22px rgba(0, 0, 0, .12);
+}
+
+.profissional-foto {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #fff;
+}
+
+.profissional-foto-iniciais {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #495057;
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: .04em;
+}
+
+.profissional-card-corpo {
+    width: 100%;
+    min-width: 0;
+    flex: 1;
+    text-align: center;
+}
+
+.profissional-card-corpo h2 {
+    margin: 0 0 4px;
+    font-size: 1.15rem;
+    line-height: 1.3;
+}
+
+.profissional-cargo {
+    margin: 0 0 8px;
+    color: #6c757d;
+    font-size: .92rem;
+}
+
+.profissional-avaliacao {
+    min-height: 24px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    color: #6c757d;
+    font-size: .84rem;
+}
+
+.profissional-estrelas {
+    color: #f0ad4e;
+    font-size: 1.08rem;
+    letter-spacing: 1px;
+}
+
+.profissional-descricao {
+    margin: 0 auto 14px;
+    display: -webkit-box;
+    overflow: hidden;
+    color: #495057;
+    font-size: .9rem;
+    line-height: 1.45;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+.profissional-servicos {
+    margin: 0;
+    font-size: .84rem;
+}
+
+.profissional-servicos strong,
+.profissional-servicos span {
+    display: block;
+}
+
+.profissional-servicos span {
+    margin-top: 3px;
+    overflow: hidden;
+    color: #6c757d;
     white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
-@media (max-width: 767.98px) {
-    .profissionais-acoes {
-        min-width: 160px;
+.profissional-card-acoes {
+    width: 100%;
+    margin-top: 18px;
+    padding-top: 16px;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    border-top: 1px solid #f1f3f5;
+}
+
+.profissional-card-acoes form {
+    margin: 0;
+}
+
+@media (max-width: 575.98px) {
+    .profissionais-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .profissional-card {
+        padding: 24px 18px 18px;
+    }
+
+    .profissional-foto-moldura {
+        width: 160px;
+        height: 160px;
     }
 }

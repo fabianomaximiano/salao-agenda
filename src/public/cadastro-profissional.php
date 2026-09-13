@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../services/ImagemProfissionalService.php';
 
 exigirAdministrador();
 
@@ -49,6 +50,7 @@ if ($editarId) {
             pr.usuario_id,
             pr.cargo,
             pr.descricao,
+            pr.foto_url,
             pr.ativo,
             p.nome_completo,
             p.cpf,
@@ -109,6 +111,24 @@ $stmtServicos = $pdo->prepare(
 $stmtServicos->execute([':empresa_id' => $empresaId]);
 $servicos = $stmtServicos->fetchAll(PDO::FETCH_ASSOC);
 
+$stmtIdentidade = $pdo->prepare(
+    'SELECT cor_primaria, cor_secundaria
+     FROM empresa_identidade_visual
+     WHERE empresa_id = :empresa_id
+     LIMIT 1'
+);
+$stmtIdentidade->execute([':empresa_id' => $empresaId]);
+$identidadeVisual = $stmtIdentidade->fetch(PDO::FETCH_ASSOC) ?: [];
+$corPrimaria = is_string($identidadeVisual['cor_primaria'] ?? null)
+    && preg_match('/^#[0-9A-Fa-f]{6}$/', $identidadeVisual['cor_primaria'])
+    ? $identidadeVisual['cor_primaria']
+    : '#6C757D';
+$corSecundaria = is_string($identidadeVisual['cor_secundaria'] ?? null)
+    && preg_match('/^#[0-9A-Fa-f]{6}$/', $identidadeVisual['cor_secundaria'])
+    ? $identidadeVisual['cor_secundaria']
+    : $corPrimaria;
+
+
 function valorProfissional(array $old, ?array $profissional, string $campo, string $padrao = ''): string
 {
     if (array_key_exists($campo, $old)) {
@@ -168,7 +188,7 @@ require __DIR__ . '/partials/navbar.php';
         </div>
     <?php endif; ?>
 
-    <form id="cadastroProfissionalForm" action="api/profissionais.php" method="post" novalidate>
+    <form id="cadastroProfissionalForm" action="api/profissionais.php" method="post" enctype="multipart/form-data" novalidate>
         <input
             type="hidden"
             name="csrf_token"
@@ -216,6 +236,7 @@ require __DIR__ . '/partials/navbar.php';
                                     inputmode="numeric"
                                     value="<?= valorProfissional($old, $profissionalEdicao, 'cpf') ?>"
                                     placeholder="000.000.000-00"
+                                    <?= $modoEdicao ? 'disabled' : '' ?>
                                 >
                                 <div class="invalid-feedback">
                                     <?= htmlspecialchars($erros['cpf'] ?? '', ENT_QUOTES, 'UTF-8') ?>
@@ -230,6 +251,7 @@ require __DIR__ . '/partials/navbar.php';
                                     id="data_nascimento"
                                     name="data_nascimento"
                                     value="<?= valorProfissional($old, $profissionalEdicao, 'data_nascimento') ?>"
+                                    <?= $modoEdicao ? 'disabled' : '' ?>
                                 >
                                 <div class="invalid-feedback">
                                     <?= htmlspecialchars($erros['data_nascimento'] ?? '', ENT_QUOTES, 'UTF-8') ?>
@@ -496,6 +518,45 @@ require __DIR__ . '/partials/navbar.php';
             </div>
 
             <div class="col-12 col-xl-4">
+                <?php
+                $fotoAtual = is_string($profissionalEdicao['foto_url'] ?? null) ? $profissionalEdicao['foto_url'] : '';
+                $fotoUrls = ImagemProfissionalService::urls($fotoAtual);
+                $nomePreview = valorProfissional($old, $profissionalEdicao, 'nome_completo', 'Profissional');
+                $iniciaisPreview = ImagemProfissionalService::iniciais(html_entity_decode($nomePreview, ENT_QUOTES, 'UTF-8'));
+                ?>
+                <div class="app-card cadastro-profissional-foto-card mb-4" style="--marca-primaria: <?= htmlspecialchars($corPrimaria, ENT_QUOTES, 'UTF-8') ?>; --marca-secundaria: <?= htmlspecialchars($corSecundaria, ENT_QUOTES, 'UTF-8') ?>;">
+                    <div class="app-card-header"><h2>Foto do profissional</h2></div>
+                    <div class="app-card-body text-center">
+                        <div class="cadastro-profissional-foto-preview" id="fotoProfissionalPreview">
+                            <?php if ($fotoUrls['m']): ?>
+                                <img
+                                    src="<?= htmlspecialchars((string) $fotoUrls['m'], ENT_QUOTES, 'UTF-8') ?>"
+                                    srcset="<?= htmlspecialchars((string) $fotoUrls['p'], ENT_QUOTES, 'UTF-8') ?> 160w, <?= htmlspecialchars((string) $fotoUrls['m'], ENT_QUOTES, 'UTF-8') ?> 320w, <?= htmlspecialchars((string) $fotoUrls['g'], ENT_QUOTES, 'UTF-8') ?> 500w"
+                                    sizes="180px"
+                                    alt="Foto de <?= htmlspecialchars(html_entity_decode($nomePreview, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8') ?>"
+                                >
+                            <?php else: ?>
+                                <span id="fotoProfissionalIniciais"><?= htmlspecialchars($iniciaisPreview, ENT_QUOTES, 'UTF-8') ?></span>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="custom-file text-left mt-3">
+                            <input
+                                type="file"
+                                class="custom-file-input<?= isset($erros['foto']) ? ' is-invalid' : '' ?>"
+                                id="foto"
+                                name="foto"
+                                accept="image/jpeg,image/png,image/webp"
+                            >
+                            <label class="custom-file-label" for="foto" data-browse="Escolher">Selecionar foto</label>
+                            <?php if (isset($erros['foto'])): ?>
+                                <div class="invalid-feedback"><?= htmlspecialchars($erros['foto'], ENT_QUOTES, 'UTF-8') ?></div>
+                            <?php endif; ?>
+                        </div>
+                        <small class="form-text text-muted mt-2">JPG, PNG ou WebP, até 5 MB. O sistema recorta ao centro e gera versões WebP otimizadas.</small>
+                    </div>
+                </div>
+
                 <?php if ($modoEdicao): ?>
                     <div class="app-card mb-4">
                         <div class="app-card-header"><h2>Acesso ao sistema</h2></div>

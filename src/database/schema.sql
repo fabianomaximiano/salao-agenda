@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Plataforma de Agendamento e Gestão de Atendimentos
--- schema.sql - Versão 2.2
--- Modelo lógico v2.2 - MySQL 8.0
+-- schema.sql - Versão 2.3
+-- Modelo lógico v2.3 - MySQL 8.0
 --
 -- IMPORTANTE:
 -- Este arquivo representa a estrutura-alvo do banco.
@@ -455,6 +455,7 @@ CREATE TABLE profissionais (
     usuario_id BIGINT UNSIGNED NULL,
     cargo VARCHAR(120) NULL,
     descricao TEXT NULL,
+    foto_url VARCHAR(500) NULL,
     ativo TINYINT(1) NOT NULL DEFAULT 1,
     criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP

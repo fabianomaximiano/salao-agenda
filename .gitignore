@@ -34,3 +34,6 @@ Thumbs.db
 # Docker local
 docker-compose.override.yml
 !src/database/schema.sql
+
+# Uploads gerados pela aplicacao
+/src/public/uploads/
