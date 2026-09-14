@@ -61,6 +61,11 @@ function podeMenu(string $permissao): bool
 
         <?php if ($ehAdministrador): ?>
             <a href="colaboradores.php" class="app-sidebar-link <?= menuAtivo(['colaboradores.php','cadastro-colaborador.php']) ?>">Colaboradores</a>
+
+            <div class="app-sidebar-title mt-3">Configurações</div>
+            <a href="dados-empresa.php" class="app-sidebar-link <?= menuAtivo(['dados-empresa.php']) ?>">Dados da empresa</a>
+            <a href="horario-funcionamento.php" class="app-sidebar-link <?= menuAtivo(['horario-funcionamento.php']) ?>">Horário de funcionamento</a>
+            <a href="identidade-visual.php" class="app-sidebar-link <?= menuAtivo(['identidade-visual.php']) ?>">Identidade visual</a>
         <?php endif; ?>
     </nav>
 </aside>
