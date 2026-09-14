@@ -159,6 +159,17 @@ function podeMenu(string $permissao): bool
                     Identidade visual
                 </a>
             <?php endif; ?>
+
+            <?php if ($ehColaborador): ?>
+                <div class="app-sidebar-title mt-3">Conta</div>
+
+                <a
+                    href="meus-dados-colaborador.php"
+                    class="app-sidebar-link <?= menuAtivo(['meus-dados-colaborador.php']) ?>"
+                >
+                    Meus dados
+                </a>
+            <?php endif; ?>
         <?php endif; ?>
     </nav>
 </aside>

@@ -1,0 +1,71 @@
+.colaborador-dados-page {
+    max-width: 1080px;
+}
+
+.colaborador-dados-header {
+    margin-bottom: 24px;
+}
+
+.colaborador-dados-section {
+    overflow: hidden;
+}
+
+.colaborador-dados-section-header {
+    padding: 18px 22px;
+}
+
+.colaborador-dados-section-header h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.colaborador-dados-section-header p {
+    margin: 4px 0 0;
+    color: #7a8391;
+    font-size: .86rem;
+}
+
+.colaborador-dados-section-body {
+    padding: 22px;
+}
+
+.colaborador-dados-check {
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    padding-top: 2px;
+}
+
+.colaborador-dados-readonly-value {
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    padding: .65rem .85rem;
+    background: #f4f6f9;
+    border: 1px solid #e1e5eb;
+    border-radius: .25rem;
+    color: #4c5564;
+    font-weight: 600;
+}
+
+.colaborador-dados-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 28px;
+}
+
+@media (max-width: 767.98px) {
+    .colaborador-dados-section-header,
+    .colaborador-dados-section-body {
+        padding: 18px;
+    }
+
+    .colaborador-dados-actions {
+        flex-direction: column-reverse;
+    }
+
+    .colaborador-dados-actions .btn {
+        width: 100%;
+    }
+}

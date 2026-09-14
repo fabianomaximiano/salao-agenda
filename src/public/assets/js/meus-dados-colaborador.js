@@ -7,24 +7,6 @@
             .slice(0, limite);
     }
 
-    function mascaraCpf(valor) {
-        var digitos = somenteDigitos(valor, 11);
-
-        if (digitos.length > 9) {
-            return digitos.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2}).*$/, '$1.$2.$3-$4');
-        }
-
-        if (digitos.length > 6) {
-            return digitos.replace(/^(\d{3})(\d{3})(\d{0,3}).*$/, '$1.$2.$3');
-        }
-
-        if (digitos.length > 3) {
-            return digitos.replace(/^(\d{3})(\d{0,3}).*$/, '$1.$2');
-        }
-
-        return digitos;
-    }
-
     function mascaraTelefone(valor) {
         var digitos = somenteDigitos(valor, 11);
 
@@ -47,30 +29,28 @@
         return '';
     }
 
-    function aplicarMascara(campo, formatador) {
-        if (!campo) {
-            return;
-        }
+    var telefone = document.getElementById('telefone');
 
-        campo.value = formatador(campo.value);
+    if (telefone) {
+        telefone.value = mascaraTelefone(telefone.value);
 
-        campo.addEventListener('input', function () {
-            campo.value = formatador(campo.value);
+        telefone.addEventListener('input', function () {
+            telefone.value = mascaraTelefone(telefone.value);
         });
 
-        campo.addEventListener('blur', function () {
-            campo.value = formatador(campo.value);
+        telefone.addEventListener('blur', function () {
+            telefone.value = mascaraTelefone(telefone.value);
         });
     }
-
-    aplicarMascara(document.getElementById('cpf'), mascaraCpf);
-    aplicarMascara(document.getElementById('telefone'), mascaraTelefone);
 
     var estado = document.getElementById('estado');
 
     if (estado) {
         estado.addEventListener('input', function () {
-            estado.value = estado.value.replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase();
+            estado.value = estado.value
+                .replace(/[^a-zA-Z]/g, '')
+                .slice(0, 2)
+                .toUpperCase();
         });
     }
 
@@ -78,7 +58,7 @@
         window.ConsultaCep.iniciar();
     }
 
-    var formulario = document.querySelector('.colaborador-admin-form');
+    var formulario = document.querySelector('.colaborador-dados-form');
 
     if (formulario) {
         formulario.addEventListener('submit', function (event) {

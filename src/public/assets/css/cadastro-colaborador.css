@@ -1,0 +1,74 @@
+.colaborador-admin-page .colaborador-admin-header {
+    margin-bottom: 24px;
+}
+
+.colaborador-admin-section {
+    overflow: hidden;
+}
+
+.colaborador-admin-section-header {
+    padding: 18px 22px;
+}
+
+.colaborador-admin-section-header h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.colaborador-admin-section-header p {
+    margin: 4px 0 0;
+    color: #7a8391;
+    font-size: .86rem;
+}
+
+.colaborador-admin-section-body {
+    padding: 22px;
+}
+
+.colaborador-admin-check {
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    padding-top: 2px;
+}
+
+.colaborador-admin-status {
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+}
+
+.colaborador-admin-acesso .badge {
+    margin-bottom: 12px;
+}
+
+.colaborador-admin-acesso p {
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+.colaborador-permissoes {
+    padding-top: 4px;
+}
+
+.colaborador-admin-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 28px;
+}
+
+@media (max-width: 767.98px) {
+    .colaborador-admin-section-header,
+    .colaborador-admin-section-body {
+        padding: 18px;
+    }
+
+    .colaborador-admin-actions {
+        flex-direction: column-reverse;
+    }
+
+    .colaborador-admin-actions .btn {
+        width: 100%;
+    }
+}
