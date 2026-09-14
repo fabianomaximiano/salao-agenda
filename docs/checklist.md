@@ -85,24 +85,24 @@
 - [ ] Revisar `administradores`
 - [ ] Revisar `profissionais`
 - [ ] Definir vínculo usuário ↔ empresa adequado aos novos perfis
-- [ ] Modelar colaborador/recepção
+- [x] Modelar colaborador/recepção
 - [ ] Modelar perfis
 - [ ] Modelar permissões
 - [ ] Garantir isolamento multi-tenant nas novas estruturas
 
 ### Atendimento por serviço
 
-- [ ] Evoluir `agendamento_servicos`
-- [ ] Status operacional por serviço/profissional
-- [ ] `iniciado_em`
-- [ ] `concluido_em`
+- [x] Evoluir `agendamento_servicos`
+- [x] Status operacional por serviço/profissional
+- [x] `iniciado_em`
+- [x] `concluido_em`
 - [ ] Revisar `valor`
 - [ ] Revisar `duracao_minutos`
-- [ ] Índices para profissional + período + status
+- [x] Índices para profissional + período + status
 - [ ] Definir compatibilização do status geral de `agendamentos`
-- [ ] Criar migrations seguras
+- [x] Criar migrations seguras
 - [ ] Atualizar `schema.sql`
-- [ ] Homologar migrations
+- [x] Homologar migrations
 
 ### Performance — ponto de controle
 
@@ -120,7 +120,7 @@
 
 - [x] Administrador — conceito atual
 - [x] Profissional — conceito atual
-- [ ] Colaborador/recepção
+- [x] Colaborador/recepção
 - [ ] Permitir evolução para gerente/supervisor sem regras rígidas espalhadas pelo código
 
 ### Permissões configuráveis
@@ -146,11 +146,11 @@
 
 ### Segurança
 
-- [ ] Interface esconder ações não autorizadas
-- [ ] Backend/API validar todas as permissões
-- [ ] Nunca confiar somente no botão oculto
+- [x] Interface esconder ações não autorizadas
+- [x] Backend/API validar todas as permissões
+- [x] Nunca confiar somente no botão oculto
 - [ ] Avaliar carregamento das permissões na sessão
-- [ ] Impedir acesso cruzado entre empresas
+- [x] Impedir acesso cruzado entre empresas
 
 ---
 
@@ -164,7 +164,7 @@
 - [x] Horário de funcionamento da empresa
 - [ ] Configurações gerais da agenda
 - [ ] Visibilidade financeira para profissionais
-- [ ] Configuração de permissões para colaboradores
+- [x] Configuração de permissões para colaboradores
 
 ---
 
@@ -181,13 +181,26 @@
 - [x] Isolamento da foto por empresa
 - [~] Horários semanais
 - [ ] Separar configuração semanal da verdadeira `agenda.php`
-- [ ] Criar `horarios-profissionais.php`
+- [x] Criar `horarios-profissionais.php`
 - [ ] Bloqueios individuais
 - [ ] Folgas
 - [ ] Férias
 - [ ] Indisponibilidades pontuais
 
 ---
+
+### Administração dos próprios dados
+
+- [x] Criar `meus-dados.php`
+- [x] Profissional administra os próprios dados pelo contexto autenticado
+- [x] Atualização de nome, nascimento e gênero
+- [x] Atualização de telefone / WhatsApp
+- [x] Atualização de endereço
+- [x] Consulta de CEP integrada
+- [x] Atualização de cargo e descrição
+- [x] Atualização da foto profissional
+- [x] CPF protegido contra alteração
+- [x] E-mail de acesso protegido contra alteração
 
 ## 7. Configuração da agenda
 
@@ -200,7 +213,7 @@
 
 ### Exceções e dias especiais
 
-- [ ] Modelar estrutura de exceções
+- [x] Modelar estrutura de exceções
 - [ ] Empresa fechada em data específica
 - [ ] Feriados
 - [ ] Recessos
@@ -287,12 +300,12 @@
 ## 9. Clientes
 
 - [ ] Revisar estrutura real
-- [ ] Cadastro
-- [ ] Edição
+- [x] Cadastro
+- [x] Edição
 - [ ] Busca
 - [ ] Histórico
-- [ ] Contatos
-- [ ] Isolamento por empresa
+- [x] Contatos
+- [x] Isolamento por empresa
 - [ ] Preservar histórico para recorrência/fidelização
 
 ---
@@ -446,16 +459,24 @@
 ## 14. Dashboard profissional
 
 - [x] Dashboard existente
-- [ ] Próximo atendimento
+- [x] Próximo atendimento
 - [ ] Atendimento atual
-- [ ] Resumo do dia
-- [ ] Concluídos
+- [x] Resumo do dia
+- [x] Concluídos
 - [ ] Cancelados
 - [ ] Não compareceram
-- [ ] Atalho para Minha Agenda
+- [x] Atalho para Minha Agenda
 - [ ] Valores somente quando autorizados
 
 ---
+- [ ] Aplicar novo visual homologado para o dashboard profissional
+- [ ] Exibir foto e cargo do profissional no destaque do dashboard
+- [ ] Criar navegação específica do profissional na sidebar
+- [ ] Sidebar profissional: **Visão geral → Dashboard**
+- [ ] Sidebar profissional: **Agenda → Minha agenda / Meus horários**
+- [ ] Sidebar profissional: **Conta → Meus dados**
+- [x] Manter **Alterar senha** no cabeçalho, sem duplicar na sidebar
+- [ ] Garantir que Dashboard profissional aponte para `dashboard-profissional.php`
 
 ## 15. Indicadores e relatórios
 
@@ -549,16 +570,16 @@
 
 ## 19. Segurança multi-tenant — transversal
 
-- [ ] `empresa_id` sempre do contexto autenticado
-- [ ] Nunca aceitar `empresa_id` arbitrário do cliente
+- [x] `empresa_id` sempre do contexto autenticado
+- [x] Nunca aceitar `empresa_id` arbitrário do cliente
 - [ ] Validar propriedade de profissionais
 - [ ] Validar propriedade de serviços
 - [ ] Validar propriedade de clientes
 - [ ] Validar propriedade de agendamentos
 - [ ] Validar permissões no backend
 - [ ] CSRF em operações mutáveis
-- [ ] Prepared statements
-- [ ] Escape de saída HTML
+- [x] Prepared statements
+- [x] Escape de saída HTML
 - [ ] Não revelar dados de outra empresa
 - [ ] Testar tentativa de acesso cruzado
 
@@ -586,7 +607,26 @@
 
 ---
 
-## 21. Homologação final
+## 21. Identidade e contatos da empresa — RADAR
+
+> Evolução futura da camada visual/institucional. Não misturar com a etapa atual do dashboard profissional.
+
+- [ ] Preparar header para receber identidade dinâmica da empresa
+- [ ] Preparar footer para receber identidade dinâmica da empresa
+- [ ] Exibir logo da empresa
+- [ ] Exibir telefone
+- [ ] Exibir WhatsApp
+- [ ] Exibir e-mail
+- [ ] Exibir links para as principais redes sociais
+- [ ] Definir redes sociais suportadas inicialmente
+- [ ] Permitir administração desses dados pelo administrador
+- [ ] Reutilizar os mesmos dados de contato de forma consistente no sistema
+- [ ] Definir fallback quando logo ou dados de contato não estiverem cadastrados
+- [ ] Revisar responsividade do header e footer
+
+---
+
+## 22. Homologação final
 
 ### Funcional
 

@@ -5,11 +5,26 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 
-exigirAdministrador();
+exigirLogin();
+
+$contextoAtual = (string) ($_SESSION['contexto'] ?? '');
+$ehAdministrador = $contextoAtual === 'administrador';
+$ehProfissional = $contextoAtual === 'profissional';
+
+if (!$ehAdministrador && !$ehProfissional) {
+    http_response_code(403);
+    exit('Acesso negado.');
+}
 
 $empresaId = (int) $_SESSION['empresa_id'];
-$pdo = getDB();
+$profissionalSessaoId = $ehProfissional ? (int) ($_SESSION['profissional_id'] ?? 0) : 0;
 
+if ($ehProfissional && $profissionalSessaoId <= 0) {
+    http_response_code(403);
+    exit('Acesso negado.');
+}
+
+$pdo = getDB();
 $timezoneEmpresa = 'America/Sao_Paulo';
 
 $stmtTimezone = $pdo->prepare(
@@ -19,7 +34,6 @@ $stmtTimezone = $pdo->prepare(
      LIMIT 1'
 );
 $stmtTimezone->execute([':empresa_id' => $empresaId]);
-
 $timezoneBanco = $stmtTimezone->fetchColumn();
 
 if (is_string($timezoneBanco) && $timezoneBanco !== '') {
@@ -49,13 +63,16 @@ $mesParam = $inicioMes->format('Y-m');
 $mesAnterior = $inicioMes->modify('-1 month')->format('Y-m');
 $proximoMes = $inicioMes->modify('+1 month')->format('Y-m');
 
-$profissionalSelecionado = filter_input(INPUT_GET, 'profissional', FILTER_VALIDATE_INT);
+if ($ehProfissional) {
+    $profissionalSelecionado = $profissionalSessaoId;
+} else {
+    $profissionalSelecionado = filter_input(INPUT_GET, 'profissional', FILTER_VALIDATE_INT);
+    $profissionalSelecionado = is_int($profissionalSelecionado) && $profissionalSelecionado > 0
+        ? $profissionalSelecionado
+        : 0;
+}
+
 $servicoSelecionado = filter_input(INPUT_GET, 'servico', FILTER_VALIDATE_INT);
-
-$profissionalSelecionado = is_int($profissionalSelecionado) && $profissionalSelecionado > 0
-    ? $profissionalSelecionado
-    : 0;
-
 $servicoSelecionado = is_int($servicoSelecionado) && $servicoSelecionado > 0
     ? $servicoSelecionado
     : 0;
@@ -80,20 +97,42 @@ foreach ($stmtHorarios->fetchAll(PDO::FETCH_ASSOC) as $horario) {
     ];
 }
 
-$stmtProfissionais = $pdo->prepare(
-    'SELECT
-        p.id,
-        pe.nome_completo
-     FROM profissionais p
-     INNER JOIN pessoas pe
-        ON pe.id = p.pessoa_id
-       AND pe.empresa_id = p.empresa_id
-     WHERE p.empresa_id = :empresa_id
-       AND p.ativo = 1
-     ORDER BY pe.nome_completo'
-);
-$stmtProfissionais->execute([':empresa_id' => $empresaId]);
+if ($ehProfissional) {
+    $stmtProfissionais = $pdo->prepare(
+        'SELECT p.id, pe.nome_completo
+         FROM profissionais p
+         INNER JOIN pessoas pe
+            ON pe.id = p.pessoa_id
+           AND pe.empresa_id = p.empresa_id
+         WHERE p.empresa_id = :empresa_id
+           AND p.id = :profissional_id
+           AND p.ativo = 1
+         LIMIT 1'
+    );
+    $stmtProfissionais->execute([
+        ':empresa_id' => $empresaId,
+        ':profissional_id' => $profissionalSessaoId,
+    ]);
+} else {
+    $stmtProfissionais = $pdo->prepare(
+        'SELECT p.id, pe.nome_completo
+         FROM profissionais p
+         INNER JOIN pessoas pe
+            ON pe.id = p.pessoa_id
+           AND pe.empresa_id = p.empresa_id
+         WHERE p.empresa_id = :empresa_id
+           AND p.ativo = 1
+         ORDER BY pe.nome_completo'
+    );
+    $stmtProfissionais->execute([':empresa_id' => $empresaId]);
+}
+
 $profissionais = $stmtProfissionais->fetchAll(PDO::FETCH_ASSOC);
+
+if ($ehProfissional && $profissionais === []) {
+    http_response_code(403);
+    exit('Acesso negado.');
+}
 
 $idsProfissionais = array_map(
     static fn (array $item): int => (int) $item['id'],
@@ -101,17 +140,36 @@ $idsProfissionais = array_map(
 );
 
 if ($profissionalSelecionado > 0 && !in_array($profissionalSelecionado, $idsProfissionais, true)) {
-    $profissionalSelecionado = 0;
+    $profissionalSelecionado = $ehProfissional ? $profissionalSessaoId : 0;
 }
 
-$stmtServicos = $pdo->prepare(
-    'SELECT id, nome
-     FROM servicos
-     WHERE empresa_id = :empresa_id
-       AND ativo = 1
-     ORDER BY nome'
-);
-$stmtServicos->execute([':empresa_id' => $empresaId]);
+if ($ehProfissional) {
+    $stmtServicos = $pdo->prepare(
+        'SELECT s.id, s.nome
+         FROM profissional_servicos ps
+         INNER JOIN servicos s
+            ON s.id = ps.servico_id
+           AND s.empresa_id = :empresa_id
+           AND s.ativo = 1
+         WHERE ps.profissional_id = :profissional_id
+           AND ps.ativo = 1
+         ORDER BY s.nome'
+    );
+    $stmtServicos->execute([
+        ':empresa_id' => $empresaId,
+        ':profissional_id' => $profissionalSessaoId,
+    ]);
+} else {
+    $stmtServicos = $pdo->prepare(
+        'SELECT id, nome
+         FROM servicos
+         WHERE empresa_id = :empresa_id
+           AND ativo = 1
+         ORDER BY nome'
+    );
+    $stmtServicos->execute([':empresa_id' => $empresaId]);
+}
+
 $servicos = $stmtServicos->fetchAll(PDO::FETCH_ASSOC);
 
 $idsServicos = array_map(
@@ -137,7 +195,8 @@ if ($profissionais !== [] && $servicos !== []) {
          INNER JOIN servicos s
             ON s.id = ps.servico_id
            AND s.empresa_id = :empresa_servicos
-           AND s.ativo = 1'
+           AND s.ativo = 1
+         WHERE ps.ativo = 1'
     );
     $stmtVinculos->execute([
         ':empresa_profissionais' => $empresaId,
@@ -223,16 +282,6 @@ $nomesDias = [
     7 => 'Dom',
 ];
 
-$nomesDiasLongos = [
-    1 => 'Seg',
-    2 => 'Ter',
-    3 => 'Qua',
-    4 => 'Qui',
-    5 => 'Sex',
-    6 => 'Sáb',
-    7 => 'Dom',
-];
-
 $meses = [
     1 => 'Janeiro',
     2 => 'Fevereiro',
@@ -248,30 +297,28 @@ $meses = [
     12 => 'Dezembro',
 ];
 
-$horarioResumo = [];
-
-foreach ($horariosEmpresa as $dia => $periodos) {
-    $partes = array_map(
-        static fn (array $periodo): string => $periodo['inicio'] . '–' . $periodo['fim'],
-        $periodos
-    );
-
-    $horarioResumo[] = ($nomesDiasLongos[$dia] ?? (string) $dia) . ' ' . implode(' / ', $partes);
-}
-
 $primeiroDiaSemana = (int) $inicioMes->format('N');
 $diasNoMes = (int) $inicioMes->format('t');
 $totalCelulas = (int) ceil(($primeiroDiaSemana - 1 + $diasNoMes) / 7) * 7;
 
 function agendaQuery(array $alteracoes): string
 {
+    global $ehProfissional, $profissionalSessaoId;
+
     $params = [
         'mes' => (string) ($_GET['mes'] ?? ''),
-        'profissional' => (string) ($_GET['profissional'] ?? ''),
         'servico' => (string) ($_GET['servico'] ?? ''),
     ];
 
+    if (!$ehProfissional) {
+        $params['profissional'] = (string) ($_GET['profissional'] ?? '');
+    }
+
     foreach ($alteracoes as $chave => $valor) {
+        if ($chave === 'profissional' && $ehProfissional) {
+            continue;
+        }
+
         if ($valor === null || $valor === '' || $valor === 0 || $valor === '0') {
             unset($params[$chave]);
             continue;
@@ -288,7 +335,7 @@ function agendaQuery(array $alteracoes): string
     return http_build_query($params);
 }
 
-$pageTitle = 'Agenda';
+$pageTitle = $ehProfissional ? 'Minha agenda' : 'Agenda';
 $pageCss = 'agenda.css?v=20260913-1';
 $pageJs = 'agenda.js?v=20260913-1';
 
@@ -300,68 +347,51 @@ require __DIR__ . '/partials/navbar.php';
 <main class="app-content">
     <div class="app-page-header d-lg-flex justify-content-between align-items-start">
         <div>
-            <h1>Agenda</h1>
-            <p>Visão mensal da operação da empresa.</p>
+            <h1><?= $ehProfissional ? 'Minha agenda' : 'Agenda' ?></h1>
+            <p>
+                <?= $ehProfissional
+                    ? 'Visualize seu calendário mensal e filtre pelos serviços que você realiza.'
+                    : 'Visão mensal da operação da empresa.' ?>
+            </p>
         </div>
 
-        <div class="agenda-header-actions mt-3 mt-lg-0">
-            <a href="horario-funcionamento.php" class="btn btn-outline-primary">
-                Horário de funcionamento
-            </a>
-            <a href="horarios-profissionais.php" class="btn btn-outline-primary">
-                Horários dos profissionais
-            </a>
-            <button type="button" class="btn btn-outline-secondary" disabled>
-                Exceções e dias especiais
-            </button>
-        </div>
-    </div>
-
-    <section class="app-card mb-4">
-        <div class="app-card-body">
-            <div class="agenda-functioning">
-                <div>
-                    <span class="agenda-section-eyebrow">Funcionamento da empresa</span>
-                    <h2>Horários ativos</h2>
-                </div>
-
-                <?php if ($horarioResumo !== []): ?>
-                    <div class="agenda-functioning-list">
-                        <?php foreach ($horarioResumo as $resumo): ?>
-                            <span class="agenda-functioning-badge">
-                                <?= htmlspecialchars($resumo, ENT_QUOTES, 'UTF-8') ?>
-                            </span>
-                        <?php endforeach; ?>
-                    </div>
-                <?php else: ?>
-                    <div class="alert alert-warning mb-0">
-                        Nenhum horário de funcionamento ativo foi configurado.
-                    </div>
-                <?php endif; ?>
+        <?php if ($ehAdministrador): ?>
+            <div class="agenda-header-actions mt-3 mt-lg-0">
+                <a href="horario-funcionamento.php" class="btn btn-outline-primary">
+                    Horário de funcionamento
+                </a>
+                <a href="horarios-profissionais.php" class="btn btn-outline-primary">
+                    Horários dos profissionais
+                </a>
+                <button type="button" class="btn btn-outline-secondary" disabled>
+                    Exceções e dias especiais
+                </button>
             </div>
-        </div>
-    </section>
+        <?php endif; ?>
+    </div>
 
     <section class="app-card mb-4">
         <div class="app-card-body">
             <form method="get" class="agenda-filters" id="agendaFilters">
                 <input type="hidden" name="mes" value="<?= htmlspecialchars($mesParam, ENT_QUOTES, 'UTF-8') ?>">
 
-                <div class="form-group mb-0">
-                    <label for="agendaProfissional">Profissional</label>
-                    <select class="form-control" id="agendaProfissional" name="profissional">
-                        <option value="">Todos os profissionais</option>
-                        <?php foreach ($profissionaisDisponiveis as $profissional): ?>
-                            <?php $id = (int) $profissional['id']; ?>
-                            <option
-                                value="<?= $id ?>"
-                                <?= $id === $profissionalSelecionado ? 'selected' : '' ?>
-                            >
-                                <?= htmlspecialchars((string) $profissional['nome_completo'], ENT_QUOTES, 'UTF-8') ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+                <?php if ($ehAdministrador): ?>
+                    <div class="form-group mb-0">
+                        <label for="agendaProfissional">Profissional</label>
+                        <select class="form-control" id="agendaProfissional" name="profissional">
+                            <option value="">Todos os profissionais</option>
+                            <?php foreach ($profissionaisDisponiveis as $profissional): ?>
+                                <?php $id = (int) $profissional['id']; ?>
+                                <option
+                                    value="<?= $id ?>"
+                                    <?= $id === $profissionalSelecionado ? 'selected' : '' ?>
+                                >
+                                    <?= htmlspecialchars((string) $profissional['nome_completo'], ENT_QUOTES, 'UTF-8') ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                <?php endif; ?>
 
                 <div class="form-group mb-0">
                     <label for="agendaServico">Serviço</label>
@@ -381,48 +411,14 @@ require __DIR__ . '/partials/navbar.php';
 
                 <div class="agenda-filter-actions">
                     <button type="submit" class="btn btn-primary">Aplicar</button>
-                    <a href="agenda.php?<?= htmlspecialchars(http_build_query(['mes' => $mesParam]), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-outline-secondary">
+                    <a
+                        href="agenda.php?<?= htmlspecialchars(http_build_query(['mes' => $mesParam]), ENT_QUOTES, 'UTF-8') ?>"
+                        class="btn btn-outline-secondary"
+                    >
                         Limpar filtros
                     </a>
                 </div>
             </form>
-
-            <?php if ($profissionalSelecionado > 0 || $servicoSelecionado > 0): ?>
-                <div class="agenda-active-filter mt-3">
-                    <strong>Visualização atual:</strong>
-                    <?php if ($profissionalSelecionado > 0): ?>
-                        <?php
-                        $nomeProfissional = '';
-                        foreach ($profissionais as $profissional) {
-                            if ((int) $profissional['id'] === $profissionalSelecionado) {
-                                $nomeProfissional = (string) $profissional['nome_completo'];
-                                break;
-                            }
-                        }
-                        ?>
-                        <span><?= htmlspecialchars($nomeProfissional, ENT_QUOTES, 'UTF-8') ?></span>
-                    <?php else: ?>
-                        <span>Todos os profissionais</span>
-                    <?php endif; ?>
-
-                    <span aria-hidden="true">•</span>
-
-                    <?php if ($servicoSelecionado > 0): ?>
-                        <?php
-                        $nomeServico = '';
-                        foreach ($servicos as $servico) {
-                            if ((int) $servico['id'] === $servicoSelecionado) {
-                                $nomeServico = (string) $servico['nome'];
-                                break;
-                            }
-                        }
-                        ?>
-                        <span><?= htmlspecialchars($nomeServico, ENT_QUOTES, 'UTF-8') ?></span>
-                    <?php else: ?>
-                        <span>Todos os serviços</span>
-                    <?php endif; ?>
-                </div>
-            <?php endif; ?>
         </div>
     </section>
 
@@ -491,7 +487,6 @@ require __DIR__ . '/partials/navbar.php';
 
                         $diaSemana = (int) $data->format('N');
                         $empresaAberta = !empty($horariosEmpresa[$diaSemana]);
-
                         $profissionalTrabalha = true;
 
                         if ($profissionalSelecionado > 0) {
@@ -538,11 +533,11 @@ require __DIR__ . '/partials/navbar.php';
                                 <?php if (!$empresaAberta): ?>
                                     <span class="agenda-day-status">Fechado</span>
                                 <?php elseif (!$profissionalTrabalha): ?>
-                                    <span class="agenda-day-status">Sem horário do profissional</span>
+                                    <span class="agenda-day-status">Sem horário</span>
                                 <?php else: ?>
-                                    <span class="agenda-day-status agenda-day-status--open">Aberto</span>
+                                    <span class="agenda-day-status agenda-day-status--open">Disponível</span>
                                     <span class="agenda-day-placeholder">
-                                        Atendimentos entram após a remodelagem operacional
+                                        Os atendimentos reais serão ligados nesta etapa da agenda.
                                     </span>
                                 <?php endif; ?>
                             </div>
@@ -554,13 +549,6 @@ require __DIR__ . '/partials/navbar.php';
                         <?php endif; ?>
                     <?php endfor; ?>
                 </div>
-            </div>
-
-            <div class="agenda-calendar-note">
-                <strong>Etapa atual:</strong>
-                o calendário já respeita o funcionamento da empresa e, quando filtrado por profissional,
-                também considera os horários semanais desse profissional. Os atendimentos reais serão ligados
-                ao calendário depois da remodelagem de <code>agendamentos</code> e <code>agendamento_servicos</code>.
             </div>
         </div>
     </section>
