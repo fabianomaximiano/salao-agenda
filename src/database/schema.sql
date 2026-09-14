@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Plataforma de Agendamento e Gestão de Atendimentos
--- schema.sql - Versão 2.4
--- Modelo lógico v2.4 - MySQL 8.0
+-- schema.sql - Versão 2.5
+-- Modelo lógico v2.5 - MySQL 8.0
 --
 -- IMPORTANTE:
 -- Este arquivo representa a estrutura-alvo do banco.
@@ -343,6 +343,29 @@ CREATE TABLE telefones_pessoa (
 ) ENGINE=InnoDB;
 
 
+CREATE TABLE enderecos_pessoa (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    pessoa_id BIGINT UNSIGNED NOT NULL,
+    cep VARCHAR(10) NULL,
+    logradouro VARCHAR(180) NULL,
+    numero VARCHAR(30) NULL,
+    complemento VARCHAR(120) NULL,
+    bairro VARCHAR(120) NULL,
+    cidade VARCHAR(120) NULL,
+    estado CHAR(2) NULL,
+    criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_enderecos_pessoa
+        FOREIGN KEY (pessoa_id) REFERENCES pessoas(id)
+        ON DELETE CASCADE,
+
+    UNIQUE KEY uq_enderecos_pessoa (pessoa_id),
+    KEY idx_enderecos_pessoa_cep (cep)
+) ENGINE=InnoDB;
+
+
 -- ============================================================================
 -- 4. ADMINISTRADORES
 -- ============================================================================
@@ -512,7 +535,8 @@ CREATE TABLE colaboradores (
     UNIQUE KEY uq_colaboradores_empresa_pessoa (empresa_id, pessoa_id),
     UNIQUE KEY uq_colaboradores_empresa_usuario (empresa_id, usuario_id),
     KEY idx_colaboradores_empresa_ativo (empresa_id, ativo),
-    KEY idx_colaboradores_usuario (usuario_id)
+    KEY idx_colaboradores_usuario (usuario_id),
+    KEY fk_colaboradores_pessoa_empresa (pessoa_id, empresa_id)
 ) ENGINE=InnoDB;
 
 
@@ -680,7 +704,8 @@ CREATE TABLE empresa_excecoes (
         FOREIGN KEY (criado_por_usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL,
 
     UNIQUE KEY uq_empresa_excecoes_empresa_data (empresa_id, data_excecao),
-    KEY idx_empresa_excecoes_consulta (empresa_id, data_excecao, ativo)
+    KEY idx_empresa_excecoes_consulta (empresa_id, data_excecao, ativo),
+    KEY fk_empresa_excecoes_usuario (criado_por_usuario_id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE empresa_excecao_periodos (

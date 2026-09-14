@@ -774,6 +774,7 @@ unset(
     src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"
 ></script>
 <script src="assets/js/localizacao-brasil.js"></script>
+<script src="assets/js/consulta-cep.js"></script>
 <script src="assets/js/cadastro-empresa.js"></script>
 
 </body>

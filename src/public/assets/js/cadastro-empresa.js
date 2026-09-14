@@ -7,6 +7,10 @@
         return;
     }
 
+    if (window.ConsultaCep) {
+        window.ConsultaCep.iniciar();
+    }
+
     var tipoDocumento = document.getElementById('tipo_documento');
     var documento = document.getElementById('documento');
 
@@ -15,15 +19,6 @@
 
     var telefoneEmpresa = document.getElementById('telefone_empresa');
     var whatsappEmpresa = document.getElementById('whatsapp_empresa');
-
-    var cep = document.getElementById('cep');
-    var cepFeedback = document.getElementById('cepFeedback');
-
-    var logradouro = document.getElementById('logradouro');
-    var bairro = document.getElementById('bairro');
-    var cidade = document.getElementById('cidade');
-    var estado = document.getElementById('estado');
-    var numero = document.getElementById('numero');
 
 
     function somenteNumeros(valor) {
@@ -111,14 +106,6 @@
     }
 
 
-    function mascaraCep(valor) {
-        valor = somenteNumeros(valor).slice(0, 8);
-
-        return valor.replace(
-            /^(\d{5})(\d)/,
-            '$1-$2'
-        );
-    }
 
 
     function validarCPF(cpf) {
@@ -278,143 +265,6 @@
     }
 
 
-    function definirFeedbackCep(mensagem, tipo) {
-        if (!cepFeedback) {
-            return;
-        }
-
-        cepFeedback.textContent = mensagem;
-
-        cepFeedback.classList.remove(
-            'text-muted',
-            'text-danger',
-            'text-success'
-        );
-
-        if (tipo === 'erro') {
-            cepFeedback.classList.add('text-danger');
-            return;
-        }
-
-        if (tipo === 'sucesso') {
-            cepFeedback.classList.add('text-success');
-            return;
-        }
-
-        cepFeedback.classList.add('text-muted');
-    }
-
-
-    function definirCamposLocalizacaoEditaveis(editaveis) {
-        cidade.readOnly = !editaveis;
-        estado.readOnly = !editaveis;
-    }
-
-
-    function limparEndereco() {
-        logradouro.value = '';
-        bairro.value = '';
-        cidade.value = '';
-        estado.value = '';
-    }
-
-
-    function consultarCep() {
-        var cepNumerico = somenteNumeros(cep.value);
-
-        if (cepNumerico.length === 0) {
-            cep.setCustomValidity('');
-            definirFeedbackCep('', '');
-            limparEndereco();
-            definirCamposLocalizacaoEditaveis(false);
-            return;
-        }
-
-        if (cepNumerico.length !== 8) {
-            cep.setCustomValidity('CEP inválido.');
-
-            definirFeedbackCep(
-                'Informe os 8 números do CEP.',
-                'erro'
-            );
-
-            return;
-        }
-
-        cep.setCustomValidity('');
-
-        definirFeedbackCep(
-            'Buscando endereço...',
-            ''
-        );
-
-        fetch(
-            'https://viacep.com.br/ws/' +
-            cepNumerico +
-            '/json/'
-        )
-            .then(function (response) {
-                if (!response.ok) {
-                    throw new Error(
-                        'Não foi possível consultar o CEP.'
-                    );
-                }
-
-                return response.json();
-            })
-            .then(function (dados) {
-                if (dados.erro) {
-                    limparEndereco();
-                    definirCamposLocalizacaoEditaveis(true);
-
-                    cep.setCustomValidity(
-                        'CEP não encontrado.'
-                    );
-
-                    definirFeedbackCep(
-                        'CEP não encontrado. Preencha o endereço manualmente.',
-                        'erro'
-                    );
-
-                    return;
-                }
-
-                cep.setCustomValidity('');
-
-                logradouro.value = dados.logradouro || '';
-                bairro.value = dados.bairro || '';
-                cidade.value = dados.localidade || '';
-                estado.value = dados.uf || '';
-
-                definirCamposLocalizacaoEditaveis(false);
-
-                definirFeedbackCep(
-                    'Endereço encontrado.',
-                    'sucesso'
-                );
-
-                if (numero) {
-                    numero.focus();
-                }
-            })
-            .catch(function (erro) {
-                console.error(
-                    'Erro ViaCEP:',
-                    erro
-                );
-
-                definirCamposLocalizacaoEditaveis(true);
-
-                cep.setCustomValidity('');
-
-                definirFeedbackCep(
-                    'Não foi possível consultar o CEP. ' +
-                    'Preencha o endereço manualmente.',
-                    'erro'
-                );
-            });
-    }
-
 
     if (tipoDocumento && documento) {
         tipoDocumento.addEventListener(
@@ -494,36 +344,6 @@
         );
     });
 
-
-    if (cep) {
-        cep.addEventListener(
-            'input',
-            function () {
-                cep.value = mascaraCep(cep.value);
-
-                cep.setCustomValidity('');
-
-                definirFeedbackCep('', '');
-
-                if (
-                    somenteNumeros(cep.value).length === 8
-                ) {
-                    consultarCep();
-                }
-            }
-        );
-
-        cep.addEventListener(
-            'blur',
-            function () {
-                if (
-                    somenteNumeros(cep.value).length > 0
-                ) {
-                    consultarCep();
-                }
-            }
-        );
-    }
 
     form.addEventListener(
         'submit',
