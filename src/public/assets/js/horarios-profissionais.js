@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var copyButton = document.getElementById('copiarHorarioEmpresa');
     var horariosEmpresa = window.SALAO_HORARIOS_EMPRESA || {};
 
-    function updateDay(dayElement) {
+    function updateDay(dayElement, clearWhenDisabled) {
         var toggle = dayElement.querySelector('.hp-day-toggle');
         var status = dayElement.querySelector('.hp-day-status');
         var inputs = dayElement.querySelectorAll('.hp-time-input');
@@ -15,12 +15,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (status) {
             status.textContent = enabled ? 'Disponível' : 'Indisponível';
+            status.classList.toggle('badge-success', enabled);
+            status.classList.toggle('badge-secondary', !enabled);
         }
 
         inputs.forEach(function (input) {
             input.disabled = !enabled;
 
-            if (!enabled) {
+            if (!enabled && clearWhenDisabled) {
                 input.value = '';
             }
         });
@@ -40,10 +42,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         toggle.addEventListener('change', function () {
-            updateDay(dayElement);
+            updateDay(dayElement, true);
         });
 
-        updateDay(dayElement);
+        updateDay(dayElement, false);
     });
 
     if (copyButton) {
@@ -60,7 +62,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 toggle.checked = periodos.length > 0;
-                updateDay(dayElement);
+                updateDay(dayElement, true);
 
                 inputsInicio.forEach(function (input, index) {
                     input.value = periodos[index] ? periodos[index].inicio : '';

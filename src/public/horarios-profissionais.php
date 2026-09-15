@@ -164,8 +164,8 @@ function periodoProfissional(array $horarios, int $dia, int $indice, string $cam
 }
 
 $pageTitle = $ehProfissional ? 'Meus horários' : 'Horários dos profissionais';
-$pageCss = 'horarios-profissionais.css?v=20260913-1';
-$pageJs = $ehAdministrador ? 'horarios-profissionais.js?v=20260913-1' : null;
+$pageCss = 'horarios-profissionais.css?v=20260914-1';
+$pageJs = $ehAdministrador ? 'horarios-profissionais.js?v=20260914-1' : null;
 
 require __DIR__ . '/partials/header.php';
 require __DIR__ . '/partials/sidebar.php';
@@ -298,7 +298,24 @@ require __DIR__ . '/partials/navbar.php';
                                     >
                                         <div class="hp-day-header">
                                             <div>
-                                                <h2><?= htmlspecialchars($nomeDia, ENT_QUOTES, 'UTF-8') ?></h2>
+                                                <?php if ($ehAdministrador): ?>
+                                                    <div class="custom-control custom-switch">
+                                                        <input
+                                                            type="checkbox"
+                                                            class="custom-control-input hp-day-toggle"
+                                                            id="aberto_<?= $dia ?>"
+                                                            name="aberto[<?= $dia ?>]"
+                                                            value="1"
+                                                            <?= $profissionalAtivo ? 'checked' : '' ?>
+                                                            <?= !$empresaAberta ? 'disabled' : '' ?>
+                                                        >
+                                                        <label class="custom-control-label" for="aberto_<?= $dia ?>">
+                                                            <strong><?= htmlspecialchars($nomeDia, ENT_QUOTES, 'UTF-8') ?></strong>
+                                                        </label>
+                                                    </div>
+                                                <?php else: ?>
+                                                    <h2><?= htmlspecialchars($nomeDia, ENT_QUOTES, 'UTF-8') ?></h2>
+                                                <?php endif; ?>
 
                                                 <?php if ($empresaAberta): ?>
                                                     <div class="hp-company-reference">
@@ -319,7 +336,7 @@ require __DIR__ . '/partials/navbar.php';
                                             </div>
 
                                             <div>
-                                                <span class="badge badge-<?= $profissionalAtivo ? 'success' : 'secondary' ?>">
+                                                <span class="badge badge-<?= $profissionalAtivo ? 'success' : 'secondary' ?> hp-day-status">
                                                     <?= $profissionalAtivo ? 'Disponível' : 'Indisponível' ?>
                                                 </span>
                                             </div>

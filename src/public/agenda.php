@@ -127,6 +127,42 @@ if ($ehProfissional) {
     $stmtProfissionais->execute([':empresa_id' => $empresaId]);
 }
 
+
+$fimMes = $inicioMes->modify('last day of this month');
+$stmtExcecoes = $pdo->prepare(
+    'SELECT ee.id, ee.data_excecao, ee.tipo, ee.descricao,
+            eep.hora_inicio, eep.hora_fim
+     FROM empresa_excecoes ee
+     LEFT JOIN empresa_excecao_periodos eep
+       ON eep.empresa_excecao_id = ee.id
+     WHERE ee.empresa_id = :empresa_id
+       AND ee.ativo = 1
+       AND ee.data_excecao BETWEEN :inicio_mes AND :fim_mes
+     ORDER BY ee.data_excecao, eep.hora_inicio'
+);
+$stmtExcecoes->execute([
+    ':empresa_id' => $empresaId,
+    ':inicio_mes' => $inicioMes->format('Y-m-d'),
+    ':fim_mes' => $fimMes->format('Y-m-d'),
+]);
+$excecoesEmpresa = [];
+foreach ($stmtExcecoes->fetchAll(PDO::FETCH_ASSOC) as $excecao) {
+    $chave = (string) $excecao['data_excecao'];
+    if (!isset($excecoesEmpresa[$chave])) {
+        $excecoesEmpresa[$chave] = [
+            'tipo' => (string) $excecao['tipo'],
+            'descricao' => (string) ($excecao['descricao'] ?? ''),
+            'periodos' => [],
+        ];
+    }
+    if ($excecao['hora_inicio'] !== null && $excecao['hora_fim'] !== null) {
+        $excecoesEmpresa[$chave]['periodos'][] = [
+            'inicio' => substr((string) $excecao['hora_inicio'], 0, 5),
+            'fim' => substr((string) $excecao['hora_fim'], 0, 5),
+        ];
+    }
+}
+
 $profissionais = $stmtProfissionais->fetchAll(PDO::FETCH_ASSOC);
 
 if ($ehProfissional && $profissionais === []) {
@@ -243,6 +279,53 @@ if (
     $servicosDisponiveis = $servicos;
 }
 
+$ausenciasAprovadas = [];
+
+if ($profissionalSelecionado > 0) {
+    $stmtAusencias = $pdo->prepare(
+        "SELECT s.id, s.inicio, s.fim, s.tipo, s.motivo
+         FROM profissional_solicitacoes_ausencia s
+         INNER JOIN profissionais p
+            ON p.id = s.profissional_id
+           AND p.empresa_id = s.empresa_id
+         WHERE s.empresa_id = :empresa_id
+           AND s.profissional_id = :profissional_id
+           AND s.status = 'aprovada'
+           AND s.inicio < :fim_mes
+           AND s.fim >= :inicio_mes
+         ORDER BY s.inicio"
+    );
+    $stmtAusencias->execute([
+        ':empresa_id' => $empresaId,
+        ':profissional_id' => $profissionalSelecionado,
+        ':inicio_mes' => $inicioMes->format('Y-m-d 00:00:00'),
+        ':fim_mes' => $fimMes->modify('+1 day')->format('Y-m-d 00:00:00'),
+    ]);
+
+    foreach ($stmtAusencias->fetchAll(PDO::FETCH_ASSOC) as $ausencia) {
+        $inicioAusencia = new DateTimeImmutable((string) $ausencia['inicio'], $timezone);
+        $fimAusencia = new DateTimeImmutable((string) $ausencia['fim'], $timezone);
+
+        $cursor = $inicioAusencia->setTime(0, 0);
+        $ultimoDia = $fimAusencia->setTime(0, 0);
+
+        while ($cursor <= $ultimoDia) {
+            $dataAusencia = $cursor->format('Y-m-d');
+
+            if ($cursor >= $inicioMes && $cursor <= $fimMes) {
+                $ausenciasAprovadas[$dataAusencia][] = [
+                    'id' => (int) $ausencia['id'],
+                    'inicio' => $inicioAusencia->format('H:i'),
+                    'fim' => $fimAusencia->format('H:i'),
+                    'motivo' => (string) ($ausencia['motivo'] ?? ''),
+                ];
+            }
+
+            $cursor = $cursor->modify('+1 day');
+        }
+    }
+}
+
 $horariosProfissional = [];
 
 if ($profissionalSelecionado > 0) {
@@ -335,9 +418,14 @@ function agendaQuery(array $alteracoes): string
     return http_build_query($params);
 }
 
+if ($ehAdministrador && empty($_SESSION['csrf_agenda_excecao'])) {
+    $_SESSION['csrf_agenda_excecao'] = bin2hex(random_bytes(32));
+}
+$csrfAgendaExcecao = $ehAdministrador ? (string) $_SESSION['csrf_agenda_excecao'] : '';
+
 $pageTitle = $ehProfissional ? 'Minha agenda' : 'Agenda';
-$pageCss = 'agenda.css?v=20260913-1';
-$pageJs = 'agenda.js?v=20260913-1';
+$pageCss = 'agenda.css?v=20260915-3';
+$pageJs = 'agenda.js?v=20260915-2';
 
 require __DIR__ . '/partials/header.php';
 require __DIR__ . '/partials/sidebar.php';
@@ -363,12 +451,32 @@ require __DIR__ . '/partials/navbar.php';
                 <a href="horarios-profissionais.php" class="btn btn-outline-primary">
                     Horários dos profissionais
                 </a>
-                <button type="button" class="btn btn-outline-secondary" disabled>
-                    Exceções e dias especiais
-                </button>
+                <span class="btn btn-outline-secondary disabled" aria-disabled="true">
+                    Dias especiais: clique em uma data
+                </span>
             </div>
         <?php endif; ?>
     </div>
+
+    <?php if (!empty($_SESSION['flash_success'])): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <?= htmlspecialchars((string) $_SESSION['flash_success'], ENT_QUOTES, 'UTF-8') ?>
+            <?php unset($_SESSION['flash_success']); ?>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Fechar">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    <?php endif; ?>
+
+    <?php if (!empty($_SESSION['flash_error'])): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <?= htmlspecialchars((string) $_SESSION['flash_error'], ENT_QUOTES, 'UTF-8') ?>
+            <?php unset($_SESSION['flash_error']); ?>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Fechar">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    <?php endif; ?>
 
     <section class="app-card mb-4">
         <div class="app-card-body">
@@ -486,17 +594,43 @@ require __DIR__ . '/partials/navbar.php';
                         );
 
                         $diaSemana = (int) $data->format('N');
+                        $dataIso = $data->format('Y-m-d');
+                        $excecaoDia = $excecoesEmpresa[$dataIso] ?? null;
                         $empresaAberta = !empty($horariosEmpresa[$diaSemana]);
+
+                        if ($excecaoDia !== null) {
+                            if ($excecaoDia['tipo'] === 'fechado') {
+                                $empresaAberta = false;
+                            } elseif ($excecaoDia['tipo'] === 'horario_especial') {
+                                $empresaAberta = !empty($excecaoDia['periodos']);
+                            }
+                        }
+
                         $profissionalTrabalha = true;
 
                         if ($profissionalSelecionado > 0) {
                             $profissionalTrabalha = !empty($horariosProfissional[$diaSemana]);
                         }
 
-                        $diaDisponivel = $empresaAberta && $profissionalTrabalha;
+                        $ausenciasDia = $profissionalSelecionado > 0
+                            ? ($ausenciasAprovadas[$dataIso] ?? [])
+                            : [];
+                        $temAusenciaAprovada = $ausenciasDia !== [];
+
+                        $diaDisponivel = $empresaAberta && $profissionalTrabalha && !$temAusenciaAprovada;
                         $ehHoje = $data->format('Y-m-d') === $hoje->format('Y-m-d');
 
                         $classes = ['agenda-day'];
+
+                        if ($excecaoDia !== null) {
+                            $classes[] = 'agenda-day--special';
+
+                            if ($excecaoDia['tipo'] === 'fechado') {
+                                $classes[] = 'agenda-day--special-closed';
+                            } elseif ($excecaoDia['tipo'] === 'horario_especial') {
+                                $classes[] = 'agenda-day--special-hours';
+                            }
+                        }
 
                         if (!$empresaAberta) {
                             $classes[] = 'agenda-day--closed';
@@ -506,16 +640,37 @@ require __DIR__ . '/partials/navbar.php';
                             $classes[] = 'agenda-day--open';
                         }
 
+                        $ehPassado = $data < $hoje;
+
+                        if ($ehPassado) {
+                            $classes[] = 'agenda-day--past';
+                        }
+
+                        if ($temAusenciaAprovada) {
+                            $classes[] = 'agenda-day--absence-approved';
+                        }
+
                         if ($ehHoje) {
                             $classes[] = 'agenda-day--today';
                         }
                         ?>
 
-                        <?php if ($diaDisponivel): ?>
+                        <?php if ($ehAdministrador && !$ehPassado && !$temAusenciaAprovada): ?>
+                            <button
+                                type="button"
+                                class="<?= htmlspecialchars(implode(' ', $classes), ENT_QUOTES, 'UTF-8') ?> agenda-day-button"
+                                data-special-date="<?= htmlspecialchars($dataIso, ENT_QUOTES, 'UTF-8') ?>"
+                                data-special-label="<?= htmlspecialchars($data->format('d/m/Y'), ENT_QUOTES, 'UTF-8') ?>"
+                                data-special-type="<?= htmlspecialchars((string) ($excecaoDia['tipo'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                data-special-description="<?= htmlspecialchars((string) ($excecaoDia['descricao'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                data-special-periods="<?= htmlspecialchars(json_encode($excecaoDia['periodos'] ?? []), ENT_QUOTES, 'UTF-8') ?>"
+                                aria-label="<?= htmlspecialchars('Alterar funcionamento de ' . $data->format('d/m/Y'), ENT_QUOTES, 'UTF-8') ?>"
+                            >
+                        <?php elseif ($diaDisponivel): ?>
                             <a
                                 href="#"
                                 class="<?= htmlspecialchars(implode(' ', $classes), ENT_QUOTES, 'UTF-8') ?>"
-                                data-agenda-date="<?= htmlspecialchars($data->format('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>"
+                                data-agenda-date="<?= htmlspecialchars($dataIso, ENT_QUOTES, 'UTF-8') ?>"
                                 aria-label="<?= htmlspecialchars('Abrir agenda de ' . $data->format('d/m/Y'), ENT_QUOTES, 'UTF-8') ?>"
                             >
                         <?php else: ?>
@@ -530,19 +685,67 @@ require __DIR__ . '/partials/navbar.php';
                             </div>
 
                             <div class="agenda-day-content">
-                                <?php if (!$empresaAberta): ?>
+                                <?php if ($excecaoDia !== null): ?>
+                                    <?php if ($excecaoDia['tipo'] === 'fechado'): ?>
+                                        <span class="agenda-special-badge agenda-special-badge--closed">Fechado</span>
+                                    <?php else: ?>
+                                        <span class="agenda-special-badge agenda-special-badge--hours">Horário especial</span>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+
+                                <?php if ($temAusenciaAprovada && !$ehPassado): ?>
+                                    <a
+                                        href="ausencias-profissionais.php?detalhe=<?= (int) $ausenciasDia[0]['id'] ?>"
+                                        class="agenda-absence-badge"
+                                        title="Ver detalhes da ausência aprovada"
+                                    >
+                                        Ausência aprovada
+                                    </a>
+                                <?php elseif ($ehPassado): ?>
+                                    <span class="agenda-day-status">Data passada</span>
+                                <?php elseif (!$empresaAberta && $excecaoDia === null): ?>
                                     <span class="agenda-day-status">Fechado</span>
+                                <?php elseif (!$empresaAberta && $excecaoDia !== null): ?>
+                                    <?php if ($excecaoDia['descricao'] !== ''): ?>
+                                        <span class="agenda-day-placeholder agenda-day-placeholder--closed">
+                                            <?= htmlspecialchars($excecaoDia['descricao'], ENT_QUOTES, 'UTF-8') ?>
+                                        </span>
+                                    <?php endif; ?>
                                 <?php elseif (!$profissionalTrabalha): ?>
                                     <span class="agenda-day-status">Sem horário</span>
                                 <?php else: ?>
                                     <span class="agenda-day-status agenda-day-status--open">Disponível</span>
-                                    <span class="agenda-day-placeholder">
-                                        Os atendimentos reais serão ligados nesta etapa da agenda.
-                                    </span>
+                                    <?php if (
+                                    !$ehPassado
+                                    && $excecaoDia !== null
+                                    && $excecaoDia['tipo'] !== 'fechado'
+                                    && $excecaoDia['descricao'] !== ''
+                                ): ?>
+                                        <span class="agenda-day-placeholder">
+                                            <?= htmlspecialchars($excecaoDia['descricao'], ENT_QUOTES, 'UTF-8') ?>
+                                        </span>
+                                    <?php elseif (!$ehPassado && $excecaoDia !== null && $excecaoDia['tipo'] === 'horario_especial'): ?>
+                                        <span class="agenda-day-placeholder">
+                                            <?= htmlspecialchars(
+                                                implode(' / ', array_map(
+                                                    static fn (array $p): string => $p['inicio'] . '–' . $p['fim'],
+                                                    $excecaoDia['periodos']
+                                                )),
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            ) ?>
+                                        </span>
+                                    <?php elseif (!$ehPassado): ?>
+                                        <span class="agenda-day-placeholder">
+                                            Os atendimentos reais serão ligados nesta etapa da agenda.
+                                        </span>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </div>
 
-                        <?php if ($diaDisponivel): ?>
+                        <?php if ($ehAdministrador && !$ehPassado && !$temAusenciaAprovada): ?>
+                            </button>
+                        <?php elseif ($diaDisponivel): ?>
                             </a>
                         <?php else: ?>
                             </div>
@@ -552,6 +755,80 @@ require __DIR__ . '/partials/navbar.php';
             </div>
         </div>
     </section>
+
+    <?php if ($ehAdministrador): ?>
+        <div class="agenda-special-modal" id="agendaSpecialModal" hidden>
+            <div class="agenda-special-backdrop" data-special-close></div>
+            <div class="agenda-special-dialog" role="dialog" aria-modal="true" aria-labelledby="agendaSpecialTitle">
+                <div class="agenda-special-header">
+                    <div>
+                        <span class="agenda-section-eyebrow">Funcionamento da empresa</span>
+                        <h2 id="agendaSpecialTitle">Alterar funcionamento deste dia</h2>
+                        <p class="mb-0 text-muted" id="agendaSpecialDateLabel"></p>
+                    </div>
+                    <button type="button" class="agenda-special-close" data-special-close aria-label="Fechar">×</button>
+                </div>
+
+                <form method="post" action="api/agenda-excecao.php" id="agendaSpecialForm">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfAgendaExcecao, ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="hidden" name="data_excecao" id="agendaSpecialDate">
+                    <input type="hidden" name="mes_retorno" value="<?= htmlspecialchars($mesParam, ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="hidden" name="profissional_retorno" value="<?= $profissionalSelecionado ?>">
+                    <input type="hidden" name="servico_retorno" value="<?= $servicoSelecionado ?>">
+
+                    <div class="agenda-special-options">
+                        <label class="agenda-special-option">
+                            <input type="radio" name="acao" value="normal" id="specialNormal">
+                            <span><strong>Funcionamento normal</strong><small>Usar o horário semanal desta data.</small></span>
+                        </label>
+                        <label class="agenda-special-option">
+                            <input type="radio" name="acao" value="fechado" id="specialClosed">
+                            <span><strong>Fechado neste dia</strong><small>Feriado, recesso ou fechamento excepcional.</small></span>
+                        </label>
+                        <label class="agenda-special-option">
+                            <input type="radio" name="acao" value="horario_especial" id="specialHours">
+                            <span><strong>Horário especial</strong><small>Alterar somente o funcionamento desta data.</small></span>
+                        </label>
+                    </div>
+
+                    <div class="agenda-special-periods" id="agendaSpecialPeriods" hidden>
+                        <div class="agenda-special-period-row">
+                            <div class="form-group mb-0">
+                                <label>Início</label>
+                                <input type="time" class="form-control" name="hora_inicio[]">
+                            </div>
+                            <div class="form-group mb-0">
+                                <label>Fim</label>
+                                <input type="time" class="form-control" name="hora_fim[]">
+                            </div>
+                        </div>
+                        <div class="agenda-special-period-row">
+                            <div class="form-group mb-0">
+                                <label>2º período</label>
+                                <input type="time" class="form-control" name="hora_inicio[]">
+                            </div>
+                            <div class="form-group mb-0">
+                                <label>Fim</label>
+                                <input type="time" class="form-control" name="hora_fim[]">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-3 mb-0">
+                        <label for="agendaSpecialDescription">Motivo / descrição</label>
+                        <input type="text" class="form-control" id="agendaSpecialDescription" name="descricao"
+                               maxlength="255" placeholder="Ex.: Feriado municipal">
+                    </div>
+
+                    <div class="agenda-special-actions">
+                        <button type="button" class="btn btn-outline-secondary" data-special-close>Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar funcionamento</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    <?php endif; ?>
+
 </main>
 
 <?php require __DIR__ . '/partials/footer.php'; ?>

@@ -63,6 +63,13 @@ function podeMenu(string $permissao): bool
                 Meus horários
             </a>
 
+            <a
+                href="ausencias-profissionais.php"
+                class="app-sidebar-link <?= menuAtivo(['ausencias-profissionais.php']) ?>"
+            >
+                Minhas ausências
+            </a>
+
             <div class="app-sidebar-title mt-3">Conta</div>
 
             <a

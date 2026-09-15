@@ -9,6 +9,7 @@ exigirAdministrador();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
+    header('Allow: POST');
     exit('Método não permitido.');
 }
 
@@ -34,6 +35,9 @@ if (!is_int($profissionalId) || $profissionalId <= 0) {
     header('Location: ../horarios-profissionais.php');
     exit;
 }
+
+$voltar = '../horarios-profissionais.php?profissional='
+    . rawurlencode((string) $profissionalId);
 
 $stmtProfissional = $pdo->prepare(
     'SELECT id
@@ -112,6 +116,11 @@ for ($dia = 1; $dia <= 7; $dia++) {
             continue;
         }
 
+        if ($horaInicio === '' || $horaFim === '') {
+            $erros[] = 'Preencha o início e o fim de cada período informado.';
+            continue;
+        }
+
         if (!horarioValido($horaInicio) || !horarioValido($horaFim)) {
             $erros[] = 'Existe um horário inválido na agenda do profissional.';
             continue;
@@ -150,6 +159,11 @@ for ($dia = 1; $dia <= 7; $dia++) {
         ];
     }
 
+    if ($periodosDia === []) {
+        $erros[] = 'Todo dia marcado como disponível deve possuir pelo menos um período de trabalho.';
+        continue;
+    }
+
     usort(
         $periodosDia,
         static fn (array $a, array $b): int => $a['inicio_minutos'] <=> $b['inicio_minutos']
@@ -176,11 +190,7 @@ if ($novosHorarios === []) {
 
 if ($erros !== []) {
     $_SESSION['flash_error'] = $erros[0];
-
-    header(
-        'Location: ../horarios-profissionais.php?profissional='
-        . rawurlencode((string) $profissionalId)
-    );
+    header('Location: ' . $voltar);
     exit;
 }
 
@@ -233,19 +243,12 @@ try {
     }
 
     $_SESSION['flash_error'] = 'Não foi possível salvar os horários do profissional.';
-
-    header(
-        'Location: ../horarios-profissionais.php?profissional='
-        . rawurlencode((string) $profissionalId)
-    );
+    header('Location: ' . $voltar);
     exit;
 }
 
 $_SESSION['csrf_horarios_profissionais'] = bin2hex(random_bytes(32));
 $_SESSION['flash_success'] = 'Horários do profissional salvos com sucesso.';
 
-header(
-    'Location: ../horarios-profissionais.php?profissional='
-    . rawurlencode((string) $profissionalId)
-);
+header('Location: ' . $voltar);
 exit;
