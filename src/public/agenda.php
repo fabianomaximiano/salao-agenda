@@ -10,8 +10,11 @@ exigirLogin();
 $contextoAtual = (string) ($_SESSION['contexto'] ?? '');
 $ehAdministrador = $contextoAtual === 'administrador';
 $ehProfissional = $contextoAtual === 'profissional';
+$ehColaborador = $contextoAtual === 'colaborador';
 
-if (!$ehAdministrador && !$ehProfissional) {
+if ($ehColaborador) {
+    exigirAcesso('agenda');
+} elseif (!$ehAdministrador && !$ehProfissional) {
     http_response_code(403);
     exit('Acesso negado.');
 }
@@ -784,7 +787,7 @@ require __DIR__ . '/partials/navbar.php';
                                                 <span class="agenda-month-summary-confirmed"><?= $resumoDia['confirmados'] ?> <?= $resumoDia['confirmados'] === 1 ? 'confirmado' : 'confirmados' ?></span>
                                             <?php endif; ?>
                                             <a class="agenda-month-summary-link"
-                                               href="agendamentos.php?data_inicio=<?= htmlspecialchars($dataIso, ENT_QUOTES, 'UTF-8') ?>&amp;data_fim=<?= htmlspecialchars($dataIso, ENT_QUOTES, 'UTF-8') ?>">
+                                               href="agenda-dia.php?data=<?= htmlspecialchars($dataIso, ENT_QUOTES, 'UTF-8') ?>">
                                                 Ver agenda do dia →
                                             </a>
                                         </div>
