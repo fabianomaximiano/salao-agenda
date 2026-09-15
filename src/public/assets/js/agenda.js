@@ -6,12 +6,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (form && profissional) profissional.addEventListener('change', function () { form.submit(); });
     if (form && servico) servico.addEventListener('change', function () { form.submit(); });
 
-    document.querySelectorAll('[data-agenda-date]').forEach(function (link) {
-        link.addEventListener('click', function (event) {
-            event.preventDefault();
-        });
-    });
-
     var modal = document.getElementById('agendaSpecialModal');
     var specialForm = document.getElementById('agendaSpecialForm');
     if (!modal || !specialForm) return;

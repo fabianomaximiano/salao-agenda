@@ -355,6 +355,49 @@ if ($profissionalSelecionado > 0) {
     }
 }
 
+$resumoAgendamentosPorDia = [];
+$whereResumo = [
+    'a.empresa_id = :empresa_id_resumo',
+    'a.inicio >= :inicio_resumo',
+    'a.inicio < :fim_resumo',
+    "a.status NOT IN ('cancelado', 'nao_compareceu')"
+];
+$paramsResumo = [
+    ':empresa_id_resumo' => $empresaId,
+    ':inicio_resumo' => $inicioMes->format('Y-m-d 00:00:00'),
+    ':fim_resumo' => $fimMes->modify('+1 day')->format('Y-m-d 00:00:00'),
+];
+if ($profissionalSelecionado > 0) {
+    $whereResumo[] = 'ags.profissional_id = :profissional_id_resumo';
+    $paramsResumo[':profissional_id_resumo'] = $profissionalSelecionado;
+}
+if ($servicoSelecionado > 0) {
+    $whereResumo[] = 'ags.servico_id = :servico_id_resumo';
+    $paramsResumo[':servico_id_resumo'] = $servicoSelecionado;
+}
+$stmtResumo = $pdo->prepare(
+    'SELECT DATE(a.inicio) data_agenda,
+            COUNT(DISTINCT a.id) total,
+            COUNT(DISTINCT ags.profissional_id) profissionais,
+            COUNT(DISTINCT CASE WHEN a.status = "pendente" THEN a.id END) pendentes,
+            COUNT(DISTINCT CASE WHEN a.status = "confirmado" THEN a.id END) confirmados
+     FROM agendamentos a
+     INNER JOIN agendamento_servicos ags ON ags.agendamento_id = a.id AND ags.ordem = 1
+     INNER JOIN profissionais pr ON pr.id = ags.profissional_id AND pr.empresa_id = a.empresa_id
+     INNER JOIN servicos s ON s.id = ags.servico_id AND s.empresa_id = a.empresa_id
+     WHERE ' . implode(' AND ', $whereResumo) . '
+     GROUP BY DATE(a.inicio)'
+);
+$stmtResumo->execute($paramsResumo);
+foreach ($stmtResumo->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    $resumoAgendamentosPorDia[(string)$r['data_agenda']] = [
+        'total'=>(int)$r['total'],
+        'profissionais'=>(int)$r['profissionais'],
+        'pendentes'=>(int)$r['pendentes'],
+        'confirmados'=>(int)$r['confirmados'],
+    ];
+}
+
 $nomesDias = [
     1 => 'Seg',
     2 => 'Ter',
@@ -424,8 +467,8 @@ if ($ehAdministrador && empty($_SESSION['csrf_agenda_excecao'])) {
 $csrfAgendaExcecao = $ehAdministrador ? (string) $_SESSION['csrf_agenda_excecao'] : '';
 
 $pageTitle = $ehProfissional ? 'Minha agenda' : 'Agenda';
-$pageCss = 'agenda.css?v=20260915-3';
-$pageJs = 'agenda.js?v=20260915-2';
+$pageCss = 'agenda.css?v=20260915-4';
+$pageJs = 'agenda.js?v=20260915-3';
 
 require __DIR__ . '/partials/header.php';
 require __DIR__ . '/partials/sidebar.php';
@@ -616,6 +659,7 @@ require __DIR__ . '/partials/navbar.php';
                             ? ($ausenciasAprovadas[$dataIso] ?? [])
                             : [];
                         $temAusenciaAprovada = $ausenciasDia !== [];
+                        $resumoDia = $resumoAgendamentosPorDia[$dataIso] ?? ['total'=>0,'profissionais'=>0,'pendentes'=>0,'confirmados'=>0];
 
                         $diaDisponivel = $empresaAberta && $profissionalTrabalha && !$temAusenciaAprovada;
                         $ehHoje = $data->format('Y-m-d') === $hoje->format('Y-m-d');
@@ -665,13 +709,6 @@ require __DIR__ . '/partials/navbar.php';
                                 data-special-description="<?= htmlspecialchars((string) ($excecaoDia['descricao'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
                                 data-special-periods="<?= htmlspecialchars(json_encode($excecaoDia['periodos'] ?? []), ENT_QUOTES, 'UTF-8') ?>"
                                 aria-label="<?= htmlspecialchars('Alterar funcionamento de ' . $data->format('d/m/Y'), ENT_QUOTES, 'UTF-8') ?>"
-                            >
-                        <?php elseif ($diaDisponivel): ?>
-                            <a
-                                href="#"
-                                class="<?= htmlspecialchars(implode(' ', $classes), ENT_QUOTES, 'UTF-8') ?>"
-                                data-agenda-date="<?= htmlspecialchars($dataIso, ENT_QUOTES, 'UTF-8') ?>"
-                                aria-label="<?= htmlspecialchars('Abrir agenda de ' . $data->format('d/m/Y'), ENT_QUOTES, 'UTF-8') ?>"
                             >
                         <?php else: ?>
                             <div class="<?= htmlspecialchars(implode(' ', $classes), ENT_QUOTES, 'UTF-8') ?>">
@@ -735,18 +772,30 @@ require __DIR__ . '/partials/navbar.php';
                                                 'UTF-8'
                                             ) ?>
                                         </span>
-                                    <?php elseif (!$ehPassado): ?>
-                                        <span class="agenda-day-placeholder">
-                                            Os atendimentos reais serão ligados nesta etapa da agenda.
-                                        </span>
+                                    <?php endif; ?>
+
+                                    <?php if (!$ehPassado && $resumoDia['total'] > 0): ?>
+                                        <div class="agenda-month-summary">
+                                            <strong><?= $resumoDia['total'] ?> <?= $resumoDia['total'] === 1 ? 'agendamento' : 'agendamentos' ?></strong>
+                                            <span><?= $resumoDia['profissionais'] ?> <?= $resumoDia['profissionais'] === 1 ? 'profissional' : 'profissionais' ?></span>
+                                            <?php if ($resumoDia['pendentes'] > 0): ?>
+                                                <span class="agenda-month-summary-pending"><?= $resumoDia['pendentes'] ?> <?= $resumoDia['pendentes'] === 1 ? 'pendente' : 'pendentes' ?></span>
+                                            <?php elseif ($resumoDia['confirmados'] > 0): ?>
+                                                <span class="agenda-month-summary-confirmed"><?= $resumoDia['confirmados'] ?> <?= $resumoDia['confirmados'] === 1 ? 'confirmado' : 'confirmados' ?></span>
+                                            <?php endif; ?>
+                                            <a class="agenda-month-summary-link"
+                                               href="agendamentos.php?data_inicio=<?= htmlspecialchars($dataIso, ENT_QUOTES, 'UTF-8') ?>&amp;data_fim=<?= htmlspecialchars($dataIso, ENT_QUOTES, 'UTF-8') ?>">
+                                                Ver agenda do dia →
+                                            </a>
+                                        </div>
+                                    <?php elseif (!$ehPassado && $empresaAberta && $profissionalTrabalha && !$temAusenciaAprovada): ?>
+                                        <span class="agenda-day-placeholder">Sem atendimentos.</span>
                                     <?php endif; ?>
                                 <?php endif; ?>
                             </div>
 
                         <?php if ($ehAdministrador && !$ehPassado && !$temAusenciaAprovada): ?>
                             </button>
-                        <?php elseif ($diaDisponivel): ?>
-                            </a>
                         <?php else: ?>
                             </div>
                         <?php endif; ?>

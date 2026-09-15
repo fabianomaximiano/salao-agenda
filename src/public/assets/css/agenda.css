@@ -326,3 +326,12 @@ button.agenda-day--special-closed:hover {
     color: #664d03;
     text-decoration: underline;
 }
+
+/* Visão mensal resumida */
+.agenda-month-summary{display:flex;flex-direction:column;align-items:flex-start;gap:.2rem;margin-top:.15rem}
+.agenda-month-summary strong{color:#212529;font-size:.78rem}
+.agenda-month-summary span{color:#6c757d;font-size:.7rem}
+.agenda-month-summary .agenda-month-summary-pending{color:#856404;font-weight:700}
+.agenda-month-summary .agenda-month-summary-confirmed{color:#0056b3;font-weight:700}
+.agenda-month-summary-link{display:inline-flex;margin-top:.25rem;font-size:.7rem;font-weight:700}
+.agenda-month-summary-link:hover,.agenda-month-summary-link:focus{text-decoration:underline}
