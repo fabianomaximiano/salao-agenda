@@ -106,7 +106,8 @@ $stmtServicos = $pdo->prepare(
     'SELECT id, nome, duracao_minutos, preco, ativo
      FROM servicos
      WHERE empresa_id = :empresa_id
-     ORDER BY ativo DESC, nome ASC'
+       AND ativo = 1
+     ORDER BY nome ASC'
 );
 $stmtServicos->execute([':empresa_id' => $empresaId]);
 $servicos = $stmtServicos->fetchAll(PDO::FETCH_ASSOC);
@@ -427,13 +428,9 @@ require __DIR__ . '/partials/navbar.php';
                                             : '';
                                     }
 
-                                    $servicoAtivo = (int) $servico['ativo'] === 1;
-                                    if (!$servicoAtivo && !$selecionado) {
-                                        continue;
-                                    }
                                     ?>
 
-                                    <div class="cadastro-profissional-servico<?= !$servicoAtivo ? ' is-inativo' : '' ?>">
+                                    <div class="cadastro-profissional-servico">
                                         <div class="custom-control custom-checkbox">
                                             <input
                                                 type="checkbox"
@@ -442,13 +439,9 @@ require __DIR__ . '/partials/navbar.php';
                                                 name="servicos[<?= $servicoId ?>][selecionado]"
                                                 value="1"
                                                 <?= $selecionado ? 'checked' : '' ?>
-                                                <?= !$servicoAtivo && !$selecionado ? 'disabled' : '' ?>
                                             >
                                             <label class="custom-control-label" for="servico_<?= $servicoId ?>">
                                                 <strong><?= htmlspecialchars($servico['nome'], ENT_QUOTES, 'UTF-8') ?></strong>
-                                                <?php if (!$servicoAtivo): ?>
-                                                    <span class="badge badge-secondary ml-1">Inativo</span>
-                                                <?php endif; ?>
                                             </label>
                                         </div>
 
@@ -577,15 +570,13 @@ require __DIR__ . '/partials/navbar.php';
                                 </p>
                             <?php endif; ?>
 
-                            <form action="api/profissionais.php" method="post">
-                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                <input type="hidden" name="acao" value="liberar_acesso">
-                                <input type="hidden" name="profissional_id" value="<?= (int) $profissionalEdicao['id'] ?>">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>" form="acessoProfissionalForm">
+                            <input type="hidden" name="acao" value="liberar_acesso" form="acessoProfissionalForm">
+                            <input type="hidden" name="profissional_id" value="<?= (int) $profissionalEdicao['id'] ?>" form="acessoProfissionalForm">
 
-                                <button type="submit" class="btn btn-outline-primary btn-block">
-                                    <?= $acessoVinculado ? 'Reenviar convite de acesso' : 'Liberar acesso' ?>
-                                </button>
-                            </form>
+                            <button type="submit" class="btn btn-outline-primary btn-block" form="acessoProfissionalForm">
+                                <?= $acessoVinculado ? 'Reenviar convite de acesso' : 'Liberar acesso' ?>
+                            </button>
                         </div>
                     </div>
                 <?php endif; ?>
@@ -602,6 +593,10 @@ require __DIR__ . '/partials/navbar.php';
             </div>
         </div>
     </form>
+
+    <?php if ($modoEdicao): ?>
+        <form id="acessoProfissionalForm" action="api/profissionais.php" method="post"></form>
+    <?php endif; ?>
 </main>
 
 <?php require __DIR__ . '/partials/footer.php'; ?>

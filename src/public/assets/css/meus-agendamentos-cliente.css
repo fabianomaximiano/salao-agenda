@@ -1,0 +1,154 @@
+.cliente-agendamentos-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.cliente-agendamentos-header h1 {
+    margin: 0 0 .45rem;
+    color: var(--cliente-text);
+    font-size: clamp(1.7rem, 3vw, 2.2rem);
+    font-weight: 800;
+}
+
+.cliente-agendamentos-header p {
+    margin: 0;
+    color: var(--cliente-muted);
+}
+
+.cliente-agendamentos-section {
+    margin-bottom: 2rem;
+}
+
+.cliente-agendamentos-lista {
+    display: grid;
+    gap: .8rem;
+}
+
+.cliente-agendamento-item {
+    display: grid;
+    grid-template-columns: 130px minmax(0, 1fr);
+    overflow: hidden;
+    background: var(--cliente-surface);
+    border: 1px solid var(--cliente-border);
+    border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(25, 35, 50, .04);
+}
+
+.cliente-agendamento-data {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 1.25rem;
+    color: #fff;
+    background: var(--cliente-primary);
+}
+
+.cliente-agendamento-data span {
+    font-size: .78rem;
+    font-weight: 700;
+}
+
+.cliente-agendamento-data strong {
+    margin: .2rem 0;
+    font-size: 1.55rem;
+    line-height: 1;
+}
+
+.cliente-agendamento-data small {
+    opacity: .8;
+}
+
+.cliente-agendamento-detalhes {
+    padding: 1.25rem;
+}
+
+.cliente-agendamento-servico {
+    display: flex;
+    flex-direction: column;
+}
+
+.cliente-agendamento-servico + .cliente-agendamento-servico {
+    margin-top: .75rem;
+    padding-top: .75rem;
+    border-top: 1px solid var(--cliente-border);
+}
+
+.cliente-agendamento-servico strong {
+    color: var(--cliente-text);
+    font-size: 1rem;
+}
+
+.cliente-agendamento-servico span {
+    margin-top: .15rem;
+    color: var(--cliente-muted);
+    font-size: .84rem;
+}
+
+.cliente-agendamento-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: .85rem;
+    border-top: 1px solid var(--cliente-border);
+    color: var(--cliente-muted);
+    font-size: .8rem;
+}
+
+.cliente-agendamentos-empty {
+    padding: 1.5rem;
+    background: var(--cliente-surface);
+    border: 1px solid var(--cliente-border);
+    border-radius: 14px;
+}
+
+.cliente-agendamentos-empty strong {
+    color: var(--cliente-text);
+}
+
+.cliente-agendamentos-empty p {
+    margin: .3rem 0 1rem;
+    color: var(--cliente-muted);
+    font-size: .86rem;
+}
+
+@media (max-width: 767.98px) {
+    .cliente-agendamentos-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .cliente-agendamentos-header .btn {
+        align-self: flex-start;
+    }
+
+    .cliente-agendamento-item {
+        grid-template-columns: 100px minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 575.98px) {
+    .cliente-agendamento-item {
+        grid-template-columns: 1fr;
+    }
+
+    .cliente-agendamento-data {
+        align-items: baseline;
+        flex-direction: row;
+        gap: .5rem;
+    }
+
+    .cliente-agendamento-data strong {
+        margin: 0;
+        font-size: 1rem;
+    }
+
+    .cliente-agendamento-meta {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

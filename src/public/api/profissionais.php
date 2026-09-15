@@ -693,27 +693,8 @@ if ($servicosNormalizados) {
         }
 
         if ($encontrados[$id] !== 1) {
-            $jaVinculado = false;
-
-            if ($acao === 'atualizar') {
-                $stmtVinculo = $pdo->prepare(
-                    'SELECT 1
-                     FROM profissional_servicos
-                     WHERE profissional_id = :profissional_id
-                       AND servico_id = :servico_id
-                     LIMIT 1'
-                );
-                $stmtVinculo->execute([
-                    ':profissional_id' => $profissionalId,
-                    ':servico_id' => $id,
-                ]);
-                $jaVinculado = (bool) $stmtVinculo->fetchColumn();
-            }
-
-            if (!$jaVinculado) {
-                $erros['servicos'] = 'Não é possível vincular um serviço inativo.';
-                break;
-            }
+            $erros['servicos'] = 'Não é possível vincular um serviço inativo.';
+            break;
         }
     }
 }
