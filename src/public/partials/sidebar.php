@@ -102,6 +102,15 @@ function podeMenu(string $permissao): bool
                 >
                     Agendamentos
                 </a>
+
+                <?php if ($ehAdministrador): ?>
+                    <a
+                        href="ausencias-profissionais.php"
+                        class="app-sidebar-link <?= menuAtivo(['ausencias-profissionais.php']) ?>"
+                    >
+                        Ausências profissionais
+                    </a>
+                <?php endif; ?>
             <?php endif; ?>
 
             <?php if (podeMenu('clientes') || podeMenu('profissionais') || podeMenu('servicos') || $ehAdministrador): ?>
@@ -143,6 +152,13 @@ function podeMenu(string $permissao): bool
                     Colaboradores
                 </a>
 
+                <a
+                    href="ausencias-colaboradores.php"
+                    class="app-sidebar-link <?= menuAtivo(['ausencias-colaboradores.php']) ?>"
+                >
+                    Ausências de colaboradores
+                </a>
+
                 <div class="app-sidebar-title mt-3">Configurações</div>
 
                 <a
@@ -175,6 +191,13 @@ function podeMenu(string $permissao): bool
                     class="app-sidebar-link <?= menuAtivo(['meus-dados-colaborador.php']) ?>"
                 >
                     Meus dados
+                </a>
+
+                <a
+                    href="ausencias-colaborador.php"
+                    class="app-sidebar-link <?= menuAtivo(['ausencias-colaborador.php']) ?>"
+                >
+                    Minhas ausências
                 </a>
             <?php endif; ?>
         <?php endif; ?>
