@@ -71,6 +71,29 @@ $transicoesProfissional = [
     'em_atendimento' => ['concluido'],
 ];
 
+$statusItensPermitidos = [
+    'agendado' => 'Agendado',
+    'confirmado' => 'Confirmado',
+    'em_atendimento' => 'Em atendimento',
+    'concluido' => 'Concluído',
+    'cancelado' => 'Cancelado',
+    'nao_compareceu' => 'Não compareceu',
+];
+
+$transicoesItemOperacao = [
+    'agendado' => ['confirmado', 'cancelado', 'nao_compareceu'],
+    'confirmado' => ['em_atendimento', 'cancelado', 'nao_compareceu'],
+    'em_atendimento' => ['concluido'],
+    'concluido' => [],
+    'cancelado' => [],
+    'nao_compareceu' => [],
+];
+
+$transicoesItemProfissional = [
+    'confirmado' => ['em_atendimento'],
+    'em_atendimento' => ['concluido'],
+];
+
 $statusFiltro = trim((string) ($_GET['status'] ?? ''));
 $profissionalFiltro = filter_input(INPUT_GET, 'profissional_id', FILTER_VALIDATE_INT);
 $dataInicio = trim((string) ($_GET['data_inicio'] ?? ''));
@@ -231,6 +254,44 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $agendamentos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+$itensPorAgendamento = [];
+if ($agendamentos) {
+    $idsAgendamentos = array_map(static fn (array $a): int => (int) $a['id'], $agendamentos);
+    $placeholders = implode(',', array_fill(0, count($idsAgendamentos), '?'));
+    $sqlItens = 'SELECT
+                    ags.id,
+                    ags.agendamento_id,
+                    ags.profissional_id,
+                    ags.status,
+                    ags.inicio,
+                    ags.fim,
+                    ags.iniciado_em,
+                    ags.concluido_em,
+                    ags.ordem,
+                    s.nome AS servico_nome,
+                    pp.nome_completo AS profissional_nome
+                 FROM agendamento_servicos ags
+                 INNER JOIN agendamentos a
+                   ON a.id = ags.agendamento_id
+                  AND a.empresa_id = ?
+                 INNER JOIN servicos s
+                   ON s.id = ags.servico_id
+                  AND s.empresa_id = a.empresa_id
+                 INNER JOIN profissionais pr
+                   ON pr.id = ags.profissional_id
+                  AND pr.empresa_id = a.empresa_id
+                 INNER JOIN pessoas pp
+                   ON pp.id = pr.pessoa_id
+                  AND pp.empresa_id = a.empresa_id
+                 WHERE ags.agendamento_id IN (' . $placeholders . ')
+                 ORDER BY ags.agendamento_id, ags.ordem';
+    $stmtItens = $pdo->prepare($sqlItens);
+    $stmtItens->execute(array_merge([$empresaId], $idsAgendamentos));
+    foreach ($stmtItens->fetchAll(PDO::FETCH_ASSOC) as $itemAgendamento) {
+        $itensPorAgendamento[(int) $itemAgendamento['agendamento_id']][] = $itemAgendamento;
+    }
+}
+
 $badges = [
     'pendente' => 'warning',
     'confirmado' => 'primary',
@@ -379,9 +440,7 @@ require __DIR__ . '/partials/navbar.php';
                             $inicio = new DateTimeImmutable((string) $agendamento['inicio']);
                             $fim = new DateTimeImmutable((string) $agendamento['fim']);
                             $status = (string) $agendamento['status'];
-                            $itens = array_values(array_filter(
-                                explode('||', (string) ($agendamento['itens'] ?? ''))
-                            ));
+                            $itens = $itensPorAgendamento[(int) $agendamento['id']] ?? [];
                             ?>
                             <tr>
                                 <td>
@@ -402,8 +461,26 @@ require __DIR__ . '/partials/navbar.php';
                                 <td>
                                     <?php if ($itens): ?>
                                         <?php foreach ($itens as $item): ?>
-                                            <div>
-                                                <?= htmlspecialchars($item, ENT_QUOTES, 'UTF-8') ?>
+                                            <?php
+                                            $statusItem = (string) $item['status'];
+                                            if ($statusItem === 'agendado' && $status !== 'pendente') {
+                                                $statusItem = match ($status) {
+                                                    'confirmado' => 'confirmado',
+                                                    'em_atendimento' => 'em_atendimento',
+                                                    'concluido' => 'concluido',
+                                                    'cancelado' => 'cancelado',
+                                                    'nao_compareceu' => 'nao_compareceu',
+                                                    default => $statusItem,
+                                                };
+                                            }
+                                            ?>
+                                            <div class="mb-2">
+                                                <strong><?= htmlspecialchars((string) $item['servico_nome'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                                — <?= htmlspecialchars((string) $item['profissional_nome'], ENT_QUOTES, 'UTF-8') ?>
+                                                <div class="small text-muted">
+                                                    <?= (new DateTimeImmutable((string) $item['inicio']))->format('H:i') ?>–<?= (new DateTimeImmutable((string) $item['fim']))->format('H:i') ?>
+                                                    · <?= htmlspecialchars($statusItensPermitidos[$statusItem] ?? $statusItem, ENT_QUOTES, 'UTF-8') ?>
+                                                </div>
                                             </div>
                                         <?php endforeach; ?>
                                     <?php else: ?>
@@ -444,44 +521,66 @@ require __DIR__ . '/partials/navbar.php';
                                 </td>
 
                                 <td class="text-right">
-                                    <?php
-                                    $proximosStatus = $ehProfissional
-                                        ? ($transicoesProfissional[$status] ?? [])
-                                        : ($transicoesOperacao[$status] ?? []);
-                                    ?>
-
-                                    <?php if ($proximosStatus): ?>
-                                        <?php if ($ehProfissional): ?>
-                                            <?php $statusAcao = $proximosStatus[0]; ?>
-                                            <form action="api/agendamentos.php" method="post" class="d-inline">
-                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                                <input type="hidden" name="acao" value="alterar_status">
-                                                <input type="hidden" name="agendamento_id" value="<?= (int) $agendamento['id'] ?>">
-                                                <input type="hidden" name="status" value="<?= htmlspecialchars($statusAcao, ENT_QUOTES, 'UTF-8') ?>">
-                                                <button type="submit" class="btn btn-sm btn-outline-primary">
-                                                    <?= $statusAcao === 'em_atendimento'
-                                                        ? '▶ Iniciar atendimento'
-                                                        : '✓ Finalizar atendimento' ?>
-                                                </button>
-                                            </form>
-                                        <?php else: ?>
-                                            <form action="api/agendamentos.php" method="post" class="d-inline-flex align-items-center">
-                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                                <input type="hidden" name="acao" value="alterar_status">
-                                                <input type="hidden" name="agendamento_id" value="<?= (int) $agendamento['id'] ?>">
-                                                <select class="custom-select custom-select-sm mr-2" name="status" required>
-                                                    <option value="">Selecione</option>
-                                                    <?php foreach ($proximosStatus as $valor): ?>
-                                                        <option value="<?= htmlspecialchars($valor, ENT_QUOTES, 'UTF-8') ?>">
-                                                            <?= htmlspecialchars($statusPermitidos[$valor] ?? $valor, ENT_QUOTES, 'UTF-8') ?>
-                                                        </option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                                <button type="submit" class="btn btn-sm btn-outline-primary">Atualizar</button>
-                                            </form>
-                                        <?php endif; ?>
+                                    <?php if (!$itens): ?>
+                                        <span class="text-muted small">Sem ação</span>
                                     <?php else: ?>
-                                        <span class="text-muted small">Status final</span>
+                                        <?php foreach ($itens as $item): ?>
+                                            <?php
+                                            $statusItem = (string) $item['status'];
+                                            if ($statusItem === 'agendado' && $status !== 'pendente') {
+                                                $statusItem = match ($status) {
+                                                    'confirmado' => 'confirmado',
+                                                    'em_atendimento' => 'em_atendimento',
+                                                    'concluido' => 'concluido',
+                                                    'cancelado' => 'cancelado',
+                                                    'nao_compareceu' => 'nao_compareceu',
+                                                    default => $statusItem,
+                                                };
+                                            }
+                                            $itemDoProfissional = !$ehProfissional
+                                                || (int) $item['profissional_id'] === $profissionalSessaoId;
+                                            $proximosStatusItem = $ehProfissional
+                                                ? ($transicoesItemProfissional[$statusItem] ?? [])
+                                                : ($transicoesItemOperacao[$statusItem] ?? []);
+                                            ?>
+                                            <?php if ($itemDoProfissional && $proximosStatusItem): ?>
+                                                <div class="mb-2">
+                                                    <?php if ($ehProfissional): ?>
+                                                        <?php $statusAcao = $proximosStatusItem[0]; ?>
+                                                        <form action="api/agendamentos.php" method="post" class="d-inline">
+                                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <input type="hidden" name="acao" value="alterar_status">
+                                                            <input type="hidden" name="agendamento_id" value="<?= (int) $agendamento['id'] ?>">
+                                                            <input type="hidden" name="agendamento_servico_id" value="<?= (int) $item['id'] ?>">
+                                                            <input type="hidden" name="status" value="<?= htmlspecialchars($statusAcao, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <button type="submit" class="btn btn-sm btn-outline-primary">
+                                                                <?= $statusAcao === 'em_atendimento' ? '▶ Iniciar' : '✓ Finalizar' ?>
+                                                            </button>
+                                                        </form>
+                                                    <?php else: ?>
+                                                        <form action="api/agendamentos.php" method="post" class="d-inline-flex align-items-center">
+                                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <input type="hidden" name="acao" value="alterar_status">
+                                                            <input type="hidden" name="agendamento_id" value="<?= (int) $agendamento['id'] ?>">
+                                                            <input type="hidden" name="agendamento_servico_id" value="<?= (int) $item['id'] ?>">
+                                                            <select class="custom-select custom-select-sm mr-2" name="status" required>
+                                                                <option value="">Selecione</option>
+                                                                <?php foreach ($proximosStatusItem as $valor): ?>
+                                                                    <option value="<?= htmlspecialchars($valor, ENT_QUOTES, 'UTF-8') ?>">
+                                                                        <?= htmlspecialchars($statusItensPermitidos[$valor] ?? $valor, ENT_QUOTES, 'UTF-8') ?>
+                                                                    </option>
+                                                                <?php endforeach; ?>
+                                                            </select>
+                                                            <button type="submit" class="btn btn-sm btn-outline-primary">Atualizar</button>
+                                                        </form>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php elseif ($itemDoProfissional): ?>
+                                                <div class="small text-muted mb-2">
+                                                    <?= htmlspecialchars((string) $item['servico_nome'], ENT_QUOTES, 'UTF-8') ?>: final
+                                                </div>
+                                            <?php endif; ?>
+                                        <?php endforeach; ?>
                                     <?php endif; ?>
                                 </td>
                             </tr>
