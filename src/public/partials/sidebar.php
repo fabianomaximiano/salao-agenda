@@ -103,6 +103,13 @@ function podeMenu(string $permissao): bool
                     Agendamentos
                 </a>
 
+                <a
+                    href="agendamento-recepcao.php"
+                    class="app-sidebar-link <?= menuAtivo(['agendamento-recepcao.php']) ?>"
+                >
+                    Novo agendamento
+                </a>
+
                 <?php if ($ehAdministrador): ?>
                     <a
                         href="ausencias-profissionais.php"
