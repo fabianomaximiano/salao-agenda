@@ -47,6 +47,14 @@ if ($acao !== 'alterar_status') {
 $agendamentoId = filter_input(INPUT_POST, 'agendamento_id', FILTER_VALIDATE_INT);
 $agendamentoServicoId = filter_input(INPUT_POST, 'agendamento_servico_id', FILTER_VALIDATE_INT);
 $statusNovo = trim((string) ($_POST['status'] ?? ''));
+$retornoData = trim((string) ($_POST['retorno_data'] ?? ''));
+$retornoUrl = '../agendamentos.php';
+if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $retornoData)) {
+    $dataRetorno = DateTimeImmutable::createFromFormat('!Y-m-d', $retornoData);
+    if ($dataRetorno !== false && $dataRetorno->format('Y-m-d') === $retornoData) {
+        $retornoUrl = '../agenda-dia.php?data=' . rawurlencode($retornoData);
+    }
+}
 
 $transicoesItemOperacao = [
     'agendado' => ['confirmado', 'cancelado', 'nao_compareceu'],
@@ -69,7 +77,7 @@ if (!$agendamentoId || !$agendamentoServicoId || !in_array($statusNovo, $statusP
         'tipo' => 'danger',
         'mensagem' => 'Não foi possível atualizar o atendimento.',
     ];
-    header('Location: ../agendamentos.php');
+    header('Location: ' . $retornoUrl);
     exit;
 }
 
@@ -331,5 +339,5 @@ try {
     ];
 }
 
-header('Location: ../agendamentos.php');
+header('Location: ' . $retornoUrl);
 exit;
