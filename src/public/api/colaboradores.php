@@ -528,6 +528,23 @@ try {
         ]);
         $pessoaId = (int) $pdo->lastInsertId();
 
+        // Colaborador sempre possui uma identidade de acesso vinculada.
+        // A conta nasce inativa e sem senha; a ativação continua sendo feita
+        // posteriormente pelo fluxo "Liberar acesso".
+        $stmt = $pdo->prepare('SELECT id FROM usuarios WHERE email = :email LIMIT 1 FOR UPDATE');
+        $stmt->execute([':email' => $email]);
+
+        if ($stmt->fetchColumn()) {
+            throw new RuntimeException('Este e-mail já está vinculado a outra conta de acesso.');
+        }
+
+        $stmt = $pdo->prepare(
+            'INSERT INTO usuarios (email, senha_hash, google_id, foto_url, ativo)
+             VALUES (:email, NULL, NULL, NULL, 0)'
+        );
+        $stmt->execute([':email' => $email]);
+        $usuarioId = (int) $pdo->lastInsertId();
+
         $camposPermissoes = implode(',', array_keys($permissoes));
         $placeholdersPermissoes = implode(',', array_map(
             static fn(string $campo): string => ':' . $campo,
@@ -538,12 +555,13 @@ try {
             'INSERT INTO colaboradores
                 (empresa_id, pessoa_id, usuario_id, cargo, ' . $camposPermissoes . ', ativo)
              VALUES
-                (:empresa_id, :pessoa_id, NULL, :cargo, ' . $placeholdersPermissoes . ', :ativo)'
+                (:empresa_id, :pessoa_id, :usuario_id, :cargo, ' . $placeholdersPermissoes . ', :ativo)'
         );
 
         $params = [
             ':empresa_id' => $empresaId,
             ':pessoa_id' => $pessoaId,
+            ':usuario_id' => $usuarioId,
             ':cargo' => $cargo !== '' ? $cargo : null,
             ':ativo' => $ativo,
         ];
