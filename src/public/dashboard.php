@@ -140,6 +140,97 @@ $totalClientes = (int) ($estatisticas['clientes'] ?? 0);
 $totalProfissionais = (int) ($estatisticas['profissionais'] ?? 0);
 $totalServicos = (int) ($estatisticas['servicos'] ?? 0);
 
+$agora = new DateTimeImmutable('now', $timezone);
+
+$stmtOperacaoHoje = $pdo->prepare(
+    "SELECT
+        SUM(CASE WHEN ags.status IN ('agendado', 'confirmado') THEN 1 ELSE 0 END) AS aguardando,
+        SUM(CASE WHEN ags.status = 'em_atendimento' THEN 1 ELSE 0 END) AS em_atendimento,
+        SUM(CASE WHEN ags.status = 'concluido' THEN 1 ELSE 0 END) AS concluidos,
+        SUM(CASE WHEN ags.status = 'cancelado' THEN 1 ELSE 0 END) AS cancelados,
+        SUM(CASE WHEN ags.status = 'nao_compareceu' THEN 1 ELSE 0 END) AS faltas
+     FROM agendamento_servicos ags
+     INNER JOIN agendamentos a
+       ON a.id = ags.agendamento_id
+      AND a.empresa_id = :empresa_id
+     WHERE ags.inicio >= :inicio_hoje
+       AND ags.inicio < :fim_hoje"
+);
+$stmtOperacaoHoje->execute([
+    ':empresa_id' => $empresaId,
+    ':inicio_hoje' => $inicioHoje->format('Y-m-d H:i:s'),
+    ':fim_hoje' => $fimHoje->format('Y-m-d H:i:s'),
+]);
+$operacaoHoje = $stmtOperacaoHoje->fetch(PDO::FETCH_ASSOC) ?: [];
+
+$aguardandoHoje = (int) ($operacaoHoje['aguardando'] ?? 0);
+$emAtendimentoHoje = (int) ($operacaoHoje['em_atendimento'] ?? 0);
+$concluidosHoje = (int) ($operacaoHoje['concluidos'] ?? 0);
+$canceladosHoje = (int) ($operacaoHoje['cancelados'] ?? 0);
+$faltasHoje = (int) ($operacaoHoje['faltas'] ?? 0);
+
+$stmtProximos = $pdo->prepare(
+    "SELECT
+        ags.inicio,
+        ags.fim,
+        ags.status,
+        s.nome AS servico,
+        pc.nome_completo AS cliente,
+        pp.nome_completo AS profissional
+     FROM agendamento_servicos ags
+     INNER JOIN agendamentos a
+       ON a.id = ags.agendamento_id
+      AND a.empresa_id = :empresa_id
+     INNER JOIN servicos s
+       ON s.id = ags.servico_id
+      AND s.empresa_id = a.empresa_id
+     INNER JOIN profissionais pr
+       ON pr.id = ags.profissional_id
+      AND pr.empresa_id = a.empresa_id
+     INNER JOIN pessoas pp
+       ON pp.id = pr.pessoa_id
+      AND pp.empresa_id = a.empresa_id
+     INNER JOIN clientes c
+       ON c.id = a.cliente_id
+      AND c.empresa_id = a.empresa_id
+     INNER JOIN pessoas pc
+       ON pc.id = c.pessoa_id
+      AND pc.empresa_id = a.empresa_id
+     WHERE ags.inicio >= :agora
+       AND ags.status NOT IN ('cancelado', 'concluido', 'nao_compareceu')
+     ORDER BY ags.inicio ASC
+     LIMIT 6"
+);
+$stmtProximos->execute([
+    ':empresa_id' => $empresaId,
+    ':agora' => $agora->format('Y-m-d H:i:s'),
+]);
+$proximosAgendamentos = $stmtProximos->fetchAll(PDO::FETCH_ASSOC);
+
+function rotuloStatusDashboard(string $status): string
+{
+    return match ($status) {
+        'agendado' => 'Agendado',
+        'confirmado' => 'Confirmado',
+        'em_atendimento' => 'Em atendimento',
+        'concluido' => 'Concluído',
+        'cancelado' => 'Cancelado',
+        'nao_compareceu' => 'Não compareceu',
+        default => ucfirst(str_replace('_', ' ', $status)),
+    };
+}
+
+function classeStatusDashboard(string $status): string
+{
+    return match ($status) {
+        'confirmado' => 'success',
+        'em_atendimento' => 'primary',
+        'concluido' => 'secondary',
+        'cancelado', 'nao_compareceu' => 'danger',
+        default => 'warning',
+    };
+}
+
 
 $etapas = [
     ['titulo' => 'Conta criada', 'concluida' => true, 'url' => null],
@@ -177,7 +268,7 @@ $concluidas = count(array_filter($etapas, static fn (array $etapa): bool => $eta
 $percentual = $totalEtapas > 0 ? (int) round(($concluidas / $totalEtapas) * 100) : 0;
 
 $pageTitle = 'Dashboard';
-$pageCss = 'dashboard.css?v=20260912-1';
+$pageCss = 'dashboard.css?v=20260923-1';
 $pageJs = 'dashboard.js';
 
 require __DIR__ . '/partials/header.php';
@@ -316,6 +407,23 @@ require __DIR__ . '/partials/navbar.php';
         <?php endif; ?>
     </div>
 
+    <?php if ($contextoAtual === 'administrador' || colaboradorPode('agenda')): ?>
+        <section class="app-card dashboard-operation mb-4">
+            <div class="app-card-header">
+                <h2>Operação de hoje</h2>
+            </div>
+            <div class="app-card-body">
+                <div class="dashboard-operation-grid">
+                    <div><strong><?= $aguardandoHoje ?></strong><span>Aguardando</span></div>
+                    <div><strong><?= $emAtendimentoHoje ?></strong><span>Em atendimento</span></div>
+                    <div><strong><?= $concluidosHoje ?></strong><span>Concluídos</span></div>
+                    <div><strong><?= $canceladosHoje ?></strong><span>Cancelados</span></div>
+                    <div><strong><?= $faltasHoje ?></strong><span>Não compareceram</span></div>
+                </div>
+            </div>
+        </section>
+    <?php endif; ?>
+
     <div class="row">
         <?php if ($contextoAtual === 'administrador' || colaboradorPode('agenda')): ?>
         <div class="col-12 col-xl-8 mb-4">
@@ -326,11 +434,52 @@ require __DIR__ . '/partials/navbar.php';
                 </div>
 
                 <div class="app-card-body p-0">
-                    <div class="app-empty-state">
-                        <h3>Nenhum agendamento encontrado</h3>
-                        <p>Os próximos atendimentos aparecerão aqui.</p>
-                        <a href="agenda.php" class="btn btn-primary">Abrir agenda</a>
-                    </div>
+                    <?php if (!$proximosAgendamentos): ?>
+                        <div class="app-empty-state">
+                            <h3>Nenhum agendamento futuro</h3>
+                            <p>Os próximos atendimentos aparecerão aqui.</p>
+                            <a href="agenda.php" class="btn btn-primary">Abrir agenda</a>
+                        </div>
+                    <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="table dashboard-appointments-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Horário</th>
+                                        <th>Cliente</th>
+                                        <th>Serviço</th>
+                                        <th>Profissional</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($proximosAgendamentos as $item): ?>
+                                        <?php
+                                        $inicioItem = new DateTimeImmutable((string) $item['inicio'], $timezone);
+                                        $fimItem = new DateTimeImmutable((string) $item['fim'], $timezone);
+                                        $statusItem = (string) $item['status'];
+                                        ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($inicioItem->format('d/m'), ENT_QUOTES, 'UTF-8') ?></td>
+                                            <td>
+                                                <strong><?= htmlspecialchars($inicioItem->format('H:i'), ENT_QUOTES, 'UTF-8') ?></strong>
+                                                <span class="text-muted">– <?= htmlspecialchars($fimItem->format('H:i'), ENT_QUOTES, 'UTF-8') ?></span>
+                                            </td>
+                                            <td><?= htmlspecialchars((string) $item['cliente'], ENT_QUOTES, 'UTF-8') ?></td>
+                                            <td><?= htmlspecialchars((string) $item['servico'], ENT_QUOTES, 'UTF-8') ?></td>
+                                            <td><?= htmlspecialchars((string) $item['profissional'], ENT_QUOTES, 'UTF-8') ?></td>
+                                            <td>
+                                                <span class="badge badge-<?= classeStatusDashboard($statusItem) ?>">
+                                                    <?= htmlspecialchars(rotuloStatusDashboard($statusItem), ENT_QUOTES, 'UTF-8') ?>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
