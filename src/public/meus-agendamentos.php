@@ -13,7 +13,26 @@ $nome = trim((string) ($_SESSION['user_name'] ?? 'Cliente'));
 $empresa = trim((string) ($_SESSION['empresa_nome'] ?? ''));
 
 $pdo = getDB();
-if (empty($_SESSION['csrf_autoagendamento'])) $_SESSION['csrf_autoagendamento']=bin2hex(random_bytes(32));
+if (empty($_SESSION['csrf_autoagendamento'])) {
+    $_SESSION['csrf_autoagendamento'] = bin2hex(random_bytes(32));
+}
+
+$timezoneEmpresa = 'America/Sao_Paulo';
+$stmtTimezone = $pdo->prepare(
+    'SELECT timezone FROM empresas WHERE id = :empresa_id LIMIT 1'
+);
+$stmtTimezone->execute([':empresa_id' => $empresaId]);
+$timezoneBanco = $stmtTimezone->fetchColumn();
+
+if (is_string($timezoneBanco) && $timezoneBanco !== '') {
+    $timezoneEmpresa = $timezoneBanco;
+}
+
+try {
+    $timezone = new DateTimeZone($timezoneEmpresa);
+} catch (Throwable $e) {
+    $timezone = new DateTimeZone('America/Sao_Paulo');
+}
 
 function hMeusAgendamentos(string $valor): string
 {
@@ -72,12 +91,12 @@ $stmt->execute([
 
 $todos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$agora = new DateTimeImmutable();
+$agora = new DateTimeImmutable('now', $timezone);
 $proximos = [];
 $historico = [];
 
 foreach ($todos as $agendamento) {
-    $fim = new DateTimeImmutable((string) $agendamento['fim']);
+    $fim = new DateTimeImmutable((string) $agendamento['fim'], $timezone);
     $status = (string) $agendamento['status'];
 
     if (
@@ -114,15 +133,29 @@ $statusClasses = [
     'nao_compareceu' => 'danger',
 ];
 
+$resumoHistorico = [
+    'concluido' => 0,
+    'cancelado' => 0,
+    'nao_compareceu' => 0,
+];
+
+foreach ($historico as $agendamentoHistorico) {
+    $statusHistorico = (string) ($agendamentoHistorico['status'] ?? '');
+    if (array_key_exists($statusHistorico, $resumoHistorico)) {
+        $resumoHistorico[$statusHistorico]++;
+    }
+}
+
 function renderAgendamentoCliente(
     array $agendamento,
     array $statusRotulos,
-    array $statusClasses
+    array $statusClasses,
+    DateTimeZone $timezone
 ): void {
-    $inicio = new DateTimeImmutable((string) $agendamento['inicio']);
-    $fim = new DateTimeImmutable((string) $agendamento['fim']);
+    $inicio = new DateTimeImmutable((string) $agendamento['inicio'], $timezone);
+    $fim = new DateTimeImmutable((string) $agendamento['fim'], $timezone);
     $status = (string) $agendamento['status'];
-    $agora = new DateTimeImmutable();
+    $agora = new DateTimeImmutable('now', $timezone);
     $podeAlterar = in_array($status,['pendente','confirmado'],true)
         && $agora < $inicio->modify('-2 hours');
     $itens = [];
@@ -135,6 +168,7 @@ function renderAgendamentoCliente(
             $itens[] = [
                 'servico' => trim((string) ($partes[0] ?? '')),
                 'profissional' => trim((string) ($partes[1] ?? '')),
+                'status' => trim((string) ($partes[2] ?? '')),
             ];
         }
     }
@@ -164,6 +198,11 @@ function renderAgendamentoCliente(
                                     : 'profissional'
                             ) ?>
                         </span>
+                        <?php if ($item['status'] !== '' && count($itens) > 1): ?>
+                            <small class="cliente-agendamento-servico-status">
+                                <?= hMeusAgendamentos($statusRotulos[$item['status']] ?? ucfirst(str_replace('_', ' ', $item['status']))) ?>
+                            </small>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
             <?php else: ?>
@@ -231,7 +270,7 @@ function renderAgendamentoCliente(
     >
     <link
         rel="stylesheet"
-        href="assets/css/meus-agendamentos-cliente.css?v=20260915-1"
+        href="assets/css/meus-agendamentos-cliente.css?v=20260923-1"
     >
 </head>
 <body>
@@ -315,7 +354,8 @@ function renderAgendamentoCliente(
                         <?php renderAgendamentoCliente(
                             $agendamento,
                             $statusRotulos,
-                            $statusClasses
+                            $statusClasses,
+                            $timezone
                         ); ?>
                     <?php endforeach; ?>
                 </div>
@@ -333,6 +373,14 @@ function renderAgendamentoCliente(
                 </div>
             </div>
 
+            <?php if ($historico): ?>
+                <div class="cliente-historico-resumo" aria-label="Resumo do histórico">
+                    <div><strong><?= $resumoHistorico['concluido'] ?></strong><span>Concluídos</span></div>
+                    <div><strong><?= $resumoHistorico['cancelado'] ?></strong><span>Cancelados</span></div>
+                    <div><strong><?= $resumoHistorico['nao_compareceu'] ?></strong><span>Não compareceram</span></div>
+                </div>
+            <?php endif; ?>
+
             <?php if (!$historico): ?>
                 <div class="cliente-agendamentos-empty">
                     <strong>Seu histórico ainda está vazio.</strong>
@@ -346,7 +394,8 @@ function renderAgendamentoCliente(
                         <?php renderAgendamentoCliente(
                             $agendamento,
                             $statusRotulos,
-                            $statusClasses
+                            $statusClasses,
+                            $timezone
                         ); ?>
                     <?php endforeach; ?>
                 </div>

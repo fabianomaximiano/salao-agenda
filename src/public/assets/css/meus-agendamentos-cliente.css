@@ -152,3 +152,46 @@
         flex-direction: column;
     }
 }
+
+
+.cliente-historico-resumo {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .75rem;
+    margin-bottom: 1rem;
+}
+
+.cliente-historico-resumo > div {
+    padding: 1rem;
+    background: var(--cliente-surface);
+    border: 1px solid var(--cliente-border);
+    border-radius: 12px;
+    text-align: center;
+}
+
+.cliente-historico-resumo strong,
+.cliente-historico-resumo span {
+    display: block;
+}
+
+.cliente-historico-resumo strong {
+    color: var(--cliente-text);
+    font-size: 1.35rem;
+}
+
+.cliente-historico-resumo span,
+.cliente-agendamento-servico-status {
+    color: var(--cliente-muted);
+    font-size: .78rem;
+}
+
+.cliente-agendamento-servico-status {
+    margin-top: .25rem;
+    font-weight: 700;
+}
+
+@media (max-width: 575.98px) {
+    .cliente-historico-resumo {
+        grid-template-columns: 1fr;
+    }
+}
