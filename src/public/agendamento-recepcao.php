@@ -12,6 +12,9 @@ if (!in_array($contextoAtual, ['administrador', 'colaborador'], true)) {
     negarAcesso();
 }
 
+$podeCadastrarCliente = $contextoAtual === 'administrador'
+    || ($contextoAtual === 'colaborador' && colaboradorPode('clientes'));
+
 $empresaId = (int) $_SESSION['empresa_id'];
 $pdo = getDB();
 
@@ -100,10 +103,10 @@ require __DIR__ . '/partials/navbar.php';
                         <?php endforeach; ?>
                     </select>
                     <div class="recepcao-apoio">
-                        <?php if ($contextoAtual === 'administrador'): ?>
+                        <?php if ($podeCadastrarCliente): ?>
                             Cliente novo? <a href="cadastro-cliente-admin.php">Cadastrar cliente</a> e depois retorne ao agendamento.
                         <?php else: ?>
-                            Cliente novo? O cadastro deve ser realizado por um administrador.
+                            Cliente novo? Solicite o cadastro a um usuário com permissão de clientes.
                         <?php endif; ?>
                     </div>
                 </div>

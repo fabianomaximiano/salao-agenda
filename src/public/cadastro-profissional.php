@@ -6,7 +6,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../services/ImagemProfissionalService.php';
 
-exigirAdministrador();
+exigirAcesso('profissionais');
 
 $empresaId = (int) $_SESSION['empresa_id'];
 $pdo = getDB();

@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__.'/../../includes/auth.php';require_once __DIR__.'/../../includes/db.php';exigirAdministrador();
+require_once __DIR__.'/../../includes/auth.php';require_once __DIR__.'/../../includes/db.php';exigirAcesso('clientes');
 if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit('Método não permitido.');}
 $empresaId=(int)$_SESSION['empresa_id'];$pdo=getDB();$acao=trim((string)($_POST['acao']??''));
 function listaC():never{header('Location: ../clientes.php');exit;} function cadC(?int $id=null):never{header('Location: ../cadastro-cliente-admin.php'.($id?'?editar='.$id:''));exit;}

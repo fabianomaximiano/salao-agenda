@@ -9,7 +9,7 @@ require_once __DIR__ . '/../../services/TokenAtivacaoService.php';
 require_once __DIR__ . '/../../services/EmailService.php';
 require_once __DIR__ . '/../../services/ImagemProfissionalService.php';
 
-exigirAdministrador();
+exigirAcesso('profissionais');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
