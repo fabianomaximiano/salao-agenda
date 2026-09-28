@@ -1,8 +1,11 @@
 :root {
     --app-primary: #343aef;
     --app-primary-dark: #2529c7;
-    --app-sidebar: #1f2430;
-    --app-sidebar-hover: #2b3242;
+    --app-secondary: #1f2430;
+    --app-on-primary: #ffffff;
+    --app-primary-rgb: 52, 58, 239;
+    --app-sidebar: var(--app-secondary);
+    --app-sidebar-hover: var(--app-primary-dark);
 
     --app-body-bg: #f5f7fa;
     --app-card-bg: #ffffff;
@@ -189,7 +192,7 @@ a {
 
     margin-right: 10px;
 
-    background: #eef0ff;
+    background: rgba(var(--app-primary-rgb), 0.10);
 
     border-radius: 50%;
 
@@ -300,12 +303,13 @@ a {
 .custom-select:focus {
     border-color: var(--app-primary);
 
-    box-shadow: 0 0 0 0.2rem rgba(52, 58, 239, 0.12);
+    box-shadow: 0 0 0 0.2rem rgba(var(--app-primary-rgb), 0.12);
 }
 
 .btn-primary {
     background: var(--app-primary);
     border-color: var(--app-primary);
+    color: var(--app-on-primary);
 }
 
 .btn-primary:hover,
@@ -466,3 +470,9 @@ a {
         white-space: nowrap;
     }
 }
+
+
+/* Identidade visual da empresa */
+a { color: var(--app-primary); }
+a:hover, a:focus { color: var(--app-primary-dark); }
+.app-sidebar-link.active { color: var(--app-on-primary); }
