@@ -311,6 +311,7 @@ $origens = [
 ];
 
 $pageTitle = 'Agendamentos';
+$pageCss = 'agendamentos.css?v=20260925-1';
 
 require __DIR__ . '/partials/header.php';
 require __DIR__ . '/partials/sidebar.php';
@@ -443,14 +444,14 @@ require __DIR__ . '/partials/navbar.php';
                             $itens = $itensPorAgendamento[(int) $agendamento['id']] ?? [];
                             ?>
                             <tr>
-                                <td>
+                                <td data-label="Data / hora">
                                     <strong><?= $inicio->format('d/m/Y') ?></strong>
                                     <div class="text-muted">
                                         <?= $inicio->format('H:i') ?>–<?= $fim->format('H:i') ?>
                                     </div>
                                 </td>
 
-                                <td>
+                                <td data-label="Cliente">
                                     <?= htmlspecialchars(
                                         (string) $agendamento['cliente_nome'],
                                         ENT_QUOTES,
@@ -458,7 +459,7 @@ require __DIR__ . '/partials/navbar.php';
                                     ) ?>
                                 </td>
 
-                                <td>
+                                <td data-label="Serviços / profissionais">
                                     <?php if ($itens): ?>
                                         <?php foreach ($itens as $item): ?>
                                             <?php
@@ -488,7 +489,7 @@ require __DIR__ . '/partials/navbar.php';
                                     <?php endif; ?>
                                 </td>
 
-                                <td>
+                                <td data-label="Origem">
                                     <?= htmlspecialchars(
                                         $origens[(string) $agendamento['origem']]
                                             ?? ucfirst((string) $agendamento['origem']),
@@ -497,7 +498,7 @@ require __DIR__ . '/partials/navbar.php';
                                     ) ?>
                                 </td>
 
-                                <td>
+                                <td data-label="Valor">
                                     R$ <?= number_format(
                                         (float) $agendamento['valor_total'],
                                         2,
@@ -506,7 +507,7 @@ require __DIR__ . '/partials/navbar.php';
                                     ) ?>
                                 </td>
 
-                                <td>
+                                <td data-label="Status">
                                     <span class="badge badge-<?= htmlspecialchars(
                                         $badges[$status] ?? 'secondary',
                                         ENT_QUOTES,
@@ -520,7 +521,7 @@ require __DIR__ . '/partials/navbar.php';
                                     </span>
                                 </td>
 
-                                <td class="text-right">
+                                <td class="text-right" data-label="Atualizar">
                                     <?php if (!$itens): ?>
                                         <span class="text-muted small">Sem ação</span>
                                     <?php else: ?>

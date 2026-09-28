@@ -470,7 +470,7 @@ if ($ehAdministrador && empty($_SESSION['csrf_agenda_excecao'])) {
 $csrfAgendaExcecao = $ehAdministrador ? (string) $_SESSION['csrf_agenda_excecao'] : '';
 
 $pageTitle = $ehProfissional ? 'Minha agenda' : 'Agenda';
-$pageCss = 'agenda.css?v=20260915-4';
+$pageCss = 'agenda.css?v=20260925-1';
 $pageJs = 'agenda.js?v=20260915-3';
 
 require __DIR__ . '/partials/header.php';
@@ -718,7 +718,10 @@ require __DIR__ . '/partials/navbar.php';
                         <?php endif; ?>
 
                             <div class="agenda-day-top">
-                                <span class="agenda-day-number"><?= $numeroDia ?></span>
+                                <span class="agenda-day-date">
+                                    <span class="agenda-day-number"><?= $numeroDia ?></span>
+                                    <span class="agenda-day-weekday"><?= htmlspecialchars($nomesDias[$diaSemana - 1] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
+                                </span>
                                 <?php if ($ehHoje): ?>
                                     <span class="agenda-today-badge">Hoje</span>
                                 <?php endif; ?>

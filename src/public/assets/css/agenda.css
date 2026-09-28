@@ -232,7 +232,7 @@ a.agenda-day:hover {
 }
 
 
-/* Exceções e dias especiais */
+/* ExceÃƒÂ§ÃƒÂµes e dias especiais */
 .agenda-day-button { width: 100%; appearance: none; font: inherit; text-align: left; cursor: pointer; }
 button.agenda-day:hover { position: relative; z-index: 1; background: #f8fbff; box-shadow: inset 0 0 0 1px rgba(0,123,255,.2); }
 .agenda-special-badge { display: inline-flex; align-self: flex-start; padding: .12rem .4rem; border-radius: 999px; background: #fff3cd; color: #856404; font-size: .66rem; font-weight: 700; }
@@ -273,7 +273,7 @@ body.agenda-modal-open { overflow: hidden; }
 }
 
 
-/* Diferencia fechamento excepcional de horário especial */
+/* Diferencia fechamento excepcional de horÃƒÂ¡rio especial */
 .agenda-day--special-closed {
     background: #fff1f1;
     box-shadow: inset 3px 0 0 #dc3545;
@@ -300,7 +300,7 @@ button.agenda-day--special-closed:hover {
 }
 
 
-/* Ausência profissional aprovada */
+/* AusÃƒÂªncia profissional aprovada */
 .agenda-day--absence-approved {
     border-color: #f0ad4e;
     background: rgba(240, 173, 78, .08);
@@ -327,7 +327,7 @@ button.agenda-day--special-closed:hover {
     text-decoration: underline;
 }
 
-/* Visão mensal resumida */
+/* VisÃƒÂ£o mensal resumida */
 .agenda-month-summary{display:flex;flex-direction:column;align-items:flex-start;gap:.2rem;margin-top:.15rem}
 .agenda-month-summary strong{color:#212529;font-size:.78rem}
 .agenda-month-summary span{color:#6c757d;font-size:.7rem}
@@ -335,3 +335,78 @@ button.agenda-day--special-closed:hover {
 .agenda-month-summary .agenda-month-summary-confirmed{color:#0056b3;font-weight:700}
 .agenda-month-summary-link{display:inline-flex;margin-top:.25rem;font-size:.7rem;font-weight:700}
 .agenda-month-summary-link:hover,.agenda-month-summary-link:focus{text-decoration:underline}
+
+/* Responsividade do calendÃƒÂ¡rio mensal */
+.agenda-day-date {
+    display: inline-flex;
+    align-items: baseline;
+    gap: .4rem;
+}
+
+.agenda-day-weekday {
+    display: none;
+    color: #6c757d;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+@media (max-width: 767.98px) {
+    .agenda-calendar-scroll {
+        overflow: visible;
+    }
+
+    .agenda-calendar {
+        display: block;
+        min-width: 0;
+    }
+
+    .agenda-weekday,
+    .agenda-day--empty,
+    .agenda-day--past {
+        display: none;
+    }
+
+    .agenda-day {
+        display: block;
+        width: 100%;
+        min-height: 0;
+        padding: .9rem 1rem;
+        border-right: 0;
+        border-bottom: 1px solid #e9ecef;
+        text-align: left;
+    }
+
+    .agenda-day:last-child {
+        border-bottom: 0;
+    }
+
+    .agenda-day-top {
+        margin-bottom: .5rem;
+    }
+
+    .agenda-day-weekday {
+        display: inline;
+    }
+
+    .agenda-day-content {
+        gap: .3rem;
+    }
+
+    .agenda-month-summary {
+        margin-top: .25rem;
+    }
+
+    .agenda-calendar-header {
+        gap: .65rem;
+    }
+
+    .agenda-month-navigation {
+        min-width: 0;
+        gap: .5rem;
+    }
+
+    .agenda-calendar-header h2 {
+        font-size: 1.1rem;
+    }
+}
