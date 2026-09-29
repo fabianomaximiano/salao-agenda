@@ -7,17 +7,149 @@ $pdo=getDB(); $slug=trim((string)($_GET['empresa']??$_POST['empresa']??'')); $em
 if(!$empresa){http_response_code(404);exit('Empresa não encontrada ou indisponível.');}
 if(isset($_SESSION['user_id']) && ($_SESSION['contexto']??'')==='cliente' && (int)($_SESSION['empresa_id']??0)===(int)$empresa['id']){header('Location: dashboard-cliente.php');exit;}
 $erro=(isset($_GET['erro'])&&$_GET['erro']==='google')?'Não foi possível entrar com o Google.':null;
+
+const CLIENTE_LOGIN_MAX_TENTATIVAS = 3;
+
+function clienteLoginIpHash(): string
+{
+    $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+    return hash('sha256', $ip);
+}
+
+function clienteLoginBloqueado(PDO $pdo, int $usuarioId, string $ipHash): bool
+{
+    $stmt = $pdo->prepare(
+        'SELECT CASE
+            WHEN bloqueado_ate IS NOT NULL AND bloqueado_ate > NOW() THEN 1
+            ELSE 0
+         END AS bloqueado
+         FROM usuario_tentativas_login
+         WHERE usuario_id = :usuario_id
+           AND ip_hash = :ip_hash
+         LIMIT 1'
+    );
+    $stmt->execute([
+        ':usuario_id' => $usuarioId,
+        ':ip_hash' => $ipHash,
+    ]);
+
+    $registro = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return $registro && (int) $registro['bloqueado'] === 1;
+}
+
+function clienteRegistrarFalhaLogin(PDO $pdo, int $usuarioId, string $ipHash): void
+{
+    $pdo->beginTransaction();
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT id, tentativas,
+                    CASE
+                        WHEN bloqueado_ate IS NOT NULL AND bloqueado_ate > NOW() THEN 1
+                        ELSE 0
+                    END AS bloqueado
+             FROM usuario_tentativas_login
+             WHERE usuario_id = :usuario_id
+               AND ip_hash = :ip_hash
+             LIMIT 1
+             FOR UPDATE'
+        );
+        $stmt->execute([
+            ':usuario_id' => $usuarioId,
+            ':ip_hash' => $ipHash,
+        ]);
+        $registro = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$registro) {
+            $insert = $pdo->prepare(
+                'INSERT INTO usuario_tentativas_login
+                    (usuario_id, ip_hash, tentativas, ultimo_erro_em)
+                 VALUES
+                    (:usuario_id, :ip_hash, 1, NOW())'
+            );
+            $insert->execute([
+                ':usuario_id' => $usuarioId,
+                ':ip_hash' => $ipHash,
+            ]);
+        } elseif ((int) $registro['bloqueado'] === 1) {
+            $update = $pdo->prepare(
+                'UPDATE usuario_tentativas_login
+                 SET ultimo_erro_em = NOW()
+                 WHERE id = :id'
+            );
+            $update->execute([':id' => (int) $registro['id']]);
+        } else {
+            $tentativas = (int) $registro['tentativas'] + 1;
+
+            if ($tentativas >= CLIENTE_LOGIN_MAX_TENTATIVAS) {
+                $update = $pdo->prepare(
+                    'UPDATE usuario_tentativas_login
+                     SET tentativas = :tentativas,
+                         bloqueado_ate = DATE_ADD(NOW(), INTERVAL 15 MINUTE),
+                         ultimo_erro_em = NOW()
+                     WHERE id = :id'
+                );
+            } else {
+                $update = $pdo->prepare(
+                    'UPDATE usuario_tentativas_login
+                     SET tentativas = :tentativas,
+                         bloqueado_ate = NULL,
+                         ultimo_erro_em = NOW()
+                     WHERE id = :id'
+                );
+            }
+
+            $update->execute([
+                ':tentativas' => $tentativas,
+                ':id' => (int) $registro['id'],
+            ]);
+        }
+
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+}
+
+function clienteLimparFalhasLogin(PDO $pdo, int $usuarioId, string $ipHash): void
+{
+    $stmt = $pdo->prepare(
+        'DELETE FROM usuario_tentativas_login
+         WHERE usuario_id = :usuario_id
+           AND ip_hash = :ip_hash'
+    );
+    $stmt->execute([
+        ':usuario_id' => $usuarioId,
+        ':ip_hash' => $ipHash,
+    ]);
+}
 if($_SERVER['REQUEST_METHOD']==='POST'){
  $email=mb_strtolower(trim((string)($_POST['email']??''))); $senha=(string)($_POST['senha']??'');
  if($email===''||$senha==='')$erro='Informe seu e-mail e sua senha.';
  elseif(!filter_var($email,FILTER_VALIDATE_EMAIL))$erro='Informe um e-mail válido.';
  else try{
   $stmt=$pdo->prepare('SELECT id,email,senha_hash,ativo FROM usuarios WHERE email=:email LIMIT 1');$stmt->execute([':email'=>$email]);$u=$stmt->fetch(PDO::FETCH_ASSOC);
-  if(!$u || (int)$u['ativo']!==1 || empty($u['senha_hash']) || !password_verify($senha,(string)$u['senha_hash'])){$erro='E-mail ou senha inválidos.';}
+  if(!$u){$erro='E-mail ou senha inválidos.';}
   else{
-   $c=clienteBuscarVinculo($pdo,(int)$u['id'],(int)$empresa['id']);
+   $usuarioId=(int)$u['id']; $ipHash=clienteLoginIpHash();
+   if(clienteLoginBloqueado($pdo,$usuarioId,$ipHash)){$erro='Não foi possível realizar o acesso agora. Tente novamente mais tarde.';}
+   elseif((int)$u['ativo']!==1 || empty($u['senha_hash']) || !password_verify($senha,(string)$u['senha_hash'])){
+    if((int)$u['ativo']===1 && !empty($u['senha_hash'])){
+     clienteRegistrarFalhaLogin($pdo,$usuarioId,$ipHash);
+     $erro=clienteLoginBloqueado($pdo,$usuarioId,$ipHash)
+      ? 'Não foi possível realizar o acesso agora. Tente novamente mais tarde.'
+      : 'E-mail ou senha inválidos.';
+    }else{$erro='E-mail ou senha inválidos.';}
+   }else{
+    clienteLimparFalhasLogin($pdo,$usuarioId,$ipHash);
+    $c=clienteBuscarVinculo($pdo,$usuarioId,(int)$empresa['id']);
    if($c){if((int)$c['cliente_ativo']!==1||(int)$c['pessoa_ativa']!==1)$erro='Este cadastro de cliente está desativado.';else{clienteIniciarSessao($pdo,$u,$c,$empresa);header('Location: dashboard-cliente.php');exit;}}
    else{$_SESSION['cliente_cadastro_pendente']=['origem'=>'senha','usuario_id'=>(int)$u['id'],'email'=>(string)$u['email'],'nome'=>'','google_id'=>null,'foto_url'=>null,'empresa_id'=>(int)$empresa['id'],'empresa_slug'=>(string)$empresa['slug']];header('Location: completar-cadastro-cliente.php?empresa='.rawurlencode((string)$empresa['slug']));exit;}
+   }
   }
  }catch(Throwable $e){error_log('Erro login cliente: '.$e->getMessage());$erro='Não foi possível realizar o login agora.';}
 }
