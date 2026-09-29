@@ -17,5 +17,7 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
 } catch (\PDOException $e) {
-    die("Erro de conexão com o banco de dados: " . $e->getMessage());
+    error_log('Erro de conexão com o banco de dados: ' . $e->getMessage());
+    http_response_code(500);
+    die('Erro interno do servidor.');
 }

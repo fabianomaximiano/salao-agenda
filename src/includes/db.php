@@ -10,6 +10,8 @@ function getDB() {
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         return $pdo;
     } catch (PDOException $e) {
-        die("Erro de conexão com o banco de dados: " . $e->getMessage());
+        error_log('Erro de conexão com o banco de dados: ' . $e->getMessage());
+        http_response_code(500);
+        die('Erro interno do servidor.');
     }
 }
