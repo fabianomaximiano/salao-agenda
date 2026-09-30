@@ -240,6 +240,21 @@ if (is_array($upload)) {
             falharIdentidadeVisual('O arquivo enviado não pôde ser reconhecido como imagem.');
         }
 
+        $larguraOriginal = (int) ($dimensoes[0] ?? 0);
+        $alturaOriginal = (int) ($dimensoes[1] ?? 0);
+
+        if ($larguraOriginal <= 0 || $alturaOriginal <= 0) {
+            falharIdentidadeVisual('A logo enviada possui dimensões inválidas.');
+        }
+
+        if (
+            $larguraOriginal > 4096
+            || $alturaOriginal > 4096
+            || $larguraOriginal * $alturaOriginal > 12000000
+        ) {
+            falharIdentidadeVisual('A logo deve ter no máximo 4096 pixels por lado e 12 milhões de pixels no total.');
+        }
+
         $diretorioRelativo = '/uploads/empresas/' . $empresaId . '/identidade';
         $diretorioFisico = dirname(__DIR__) . $diretorioRelativo;
 
