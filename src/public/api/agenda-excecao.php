@@ -131,6 +131,61 @@ try {
 
     $tipo = $acao === 'fechado' ? 'fechado' : 'horario_especial';
 
+    $diaInicio = $data . ' 00:00:00';
+    $diaFim = (new DateTimeImmutable($data . ' 00:00:00', $timezone))
+        ->modify('+1 day')
+        ->format('Y-m-d H:i:s');
+
+    $stmt = $pdo->prepare(
+        "SELECT ags.inicio, ags.fim
+         FROM agendamento_servicos ags
+         INNER JOIN agendamentos a ON a.id = ags.agendamento_id
+         WHERE a.empresa_id = :empresa_id
+           AND ags.inicio < :dia_fim
+           AND ags.fim > :dia_inicio
+           AND a.status NOT IN ('cancelado', 'nao_compareceu')
+           AND ags.status NOT IN ('cancelado', 'nao_compareceu')
+         FOR UPDATE"
+    );
+    $stmt->execute([
+        ':empresa_id' => $empresaId,
+        ':dia_fim' => $diaFim,
+        ':dia_inicio' => $diaInicio,
+    ]);
+    $agendamentosAtivos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if ($tipo === 'fechado' && $agendamentosAtivos) {
+        $pdo->rollBack();
+        $_SESSION['flash_error'] = 'Existem agendamentos ativos nesta data. Remarque ou cancele os atendimentos antes de marcar o salão como fechado.';
+        header('Location: ' . $url);
+        exit;
+    }
+
+    if ($tipo === 'horario_especial') {
+        foreach ($agendamentosAtivos as $agendamento) {
+            $inicioAgendamento = new DateTimeImmutable((string) $agendamento['inicio'], $timezone);
+            $fimAgendamento = new DateTimeImmutable((string) $agendamento['fim'], $timezone);
+            $dentroDePeriodoEspecial = false;
+
+            foreach ($periodos as [$inicioPeriodo, $fimPeriodo]) {
+                $inicioEspecial = new DateTimeImmutable($data . ' ' . $inicioPeriodo . ':00', $timezone);
+                $fimEspecial = new DateTimeImmutable($data . ' ' . $fimPeriodo . ':00', $timezone);
+
+                if ($inicioAgendamento >= $inicioEspecial && $fimAgendamento <= $fimEspecial) {
+                    $dentroDePeriodoEspecial = true;
+                    break;
+                }
+            }
+
+            if (!$dentroDePeriodoEspecial) {
+                $pdo->rollBack();
+                $_SESSION['flash_error'] = 'Existem agendamentos ativos fora do horário especial informado. Remarque ou cancele os atendimentos conflitantes antes de alterar o funcionamento.';
+                header('Location: ' . $url);
+                exit;
+            }
+        }
+    }
+
     if ($id > 0) {
         $up = $pdo->prepare(
             'UPDATE empresa_excecoes
