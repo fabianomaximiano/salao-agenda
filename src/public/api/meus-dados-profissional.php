@@ -112,9 +112,14 @@ if (!in_array($genero, ['masculino', 'feminino', 'nao_binario', 'nao_informado']
     $erros['genero'] = 'Gênero inválido.';
 }
 
-if (mb_strlen($telefone) > 30) {
-    $erros['telefone'] = 'O telefone deve ter no máximo 30 caracteres.';
+if ($telefone !== '') {
+    $telefoneDigitos = preg_replace('/\\D+/', '', $telefone) ?? '';
+
+    if (strlen($telefoneDigitos) < 10 || strlen($telefoneDigitos) > 11) {
+        $erros['telefone'] = 'Informe um telefone ou celular válido.';
+    }
 }
+
 if ($telefone === '' && $whatsapp === 1) {
     $erros['telefone'] = 'Informe o telefone antes de marcar WhatsApp.';
 }
