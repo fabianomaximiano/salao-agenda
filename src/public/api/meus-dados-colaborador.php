@@ -114,6 +114,14 @@ if (!in_array($genero, ['masculino', 'feminino', 'nao_binario', 'nao_informado']
     $old['genero'] = $genero;
 }
 
+if ($telefone !== '') {
+    $telefoneNumerico = somenteDigitosDadosColaborador($telefone);
+
+    if (strlen($telefoneNumerico) < 10 || strlen($telefoneNumerico) > 11) {
+        $erros['telefone'] = 'Informe um telefone ou celular válido.';
+    }
+}
+
 if ($cep !== '' && strlen(somenteDigitosDadosColaborador($cep)) !== 8) {
     $erros['cep'] = 'Informe um CEP válido.';
 }
