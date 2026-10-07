@@ -181,6 +181,24 @@ try {
     $profissionalItemId = (int) $item['profissional_id'];
     $statusItemAnterior = (string) $item['status'];
 
+    // Usa a linha do profissional como mutex comum dos fluxos da agenda.
+    $stmtProfissional = $pdo->prepare(
+        'SELECT id
+         FROM profissionais
+         WHERE id = :profissional_id
+           AND empresa_id = :empresa_id
+         LIMIT 1
+         FOR UPDATE'
+    );
+    $stmtProfissional->execute([
+        ':profissional_id' => $profissionalItemId,
+        ':empresa_id' => $empresaId,
+    ]);
+
+    if (!$stmtProfissional->fetchColumn()) {
+        throw new RuntimeException('Profissional não encontrado.');
+    }
+
     // Compatibilidade com registros anteriores ao fluxo por serviço:
     // o cabeçalho avançava, mas o item permanecia como "agendado".
     if ($statusItemAnterior === 'agendado' && $statusGeralAnterior !== 'pendente') {
