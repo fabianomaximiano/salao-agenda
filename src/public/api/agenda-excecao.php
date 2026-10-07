@@ -110,6 +110,19 @@ $pdo = getDB();
 try {
     $pdo->beginTransaction();
 
+    // Serializa a alteração do funcionamento com os fluxos de agendamento,
+    // que usam a linha do profissional como mutex.
+    $stmt = $pdo->prepare(
+        'SELECT id
+         FROM profissionais
+         WHERE empresa_id = :empresa_id
+           AND ativo = 1
+         ORDER BY id
+         FOR UPDATE'
+    );
+    $stmt->execute([':empresa_id' => $empresaId]);
+    $stmt->fetchAll(PDO::FETCH_COLUMN);
+
     $stmt = $pdo->prepare(
         'SELECT id FROM empresa_excecoes
          WHERE empresa_id = :empresa_id AND data_excecao = :data
