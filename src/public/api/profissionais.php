@@ -152,29 +152,28 @@ if ($acao === 'alternar_status') {
         redirecionarListaProfissionais();
     }
 
-    $stmt = $pdo->prepare(
-        'SELECT id, pessoa_id, ativo
-         FROM profissionais
-         WHERE id = :id
-           AND empresa_id = :empresa_id
-         LIMIT 1'
-    );
-    $stmt->execute([
-        ':id' => $profissionalId,
-        ':empresa_id' => $empresaId,
-    ]);
-    $profissional = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$profissional) {
-        flashListaProfissionais('danger', 'Profissional não encontrado.');
-        redirecionarListaProfissionais();
-    }
-
-    $novoStatus = (int) $profissional['ativo'] === 1 ? 0 : 1;
-
     $pdo->beginTransaction();
 
     try {
+        $stmt = $pdo->prepare(
+            'SELECT id, pessoa_id, ativo
+             FROM profissionais
+             WHERE id = :id
+               AND empresa_id = :empresa_id
+             LIMIT 1
+             FOR UPDATE'
+        );
+        $stmt->execute([
+            ':id' => $profissionalId,
+            ':empresa_id' => $empresaId,
+        ]);
+        $profissional = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$profissional) {
+            throw new RuntimeException('Profissional não encontrado.');
+        }
+
+        $novoStatus = (int) $profissional['ativo'] === 1 ? 0 : 1;
         $stmtUpdate = $pdo->prepare(
             'UPDATE profissionais
              SET ativo = :ativo
