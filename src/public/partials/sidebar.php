@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 $currentPage = basename($_SERVER['PHP_SELF']);
 $contextoAtual = (string) ($_SESSION['contexto'] ?? '');
@@ -31,10 +31,6 @@ function podeMenu(string $permissao): bool
 
 ?>
 <aside class="app-sidebar">
-    <div class="app-sidebar-brand">
-        <img src="assets/img/logo-placeholder.svg" alt="Agenda">
-        <strong>Agenda</strong>
-    </div>
 
     <nav class="app-sidebar-nav">
         <?php if ($ehProfissional): ?>
