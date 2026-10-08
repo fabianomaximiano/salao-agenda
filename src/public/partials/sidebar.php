@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 $currentPage = basename($_SERVER['PHP_SELF']);
 $contextoAtual = (string) ($_SESSION['contexto'] ?? '');
@@ -183,6 +183,13 @@ function podeMenu(string $permissao): bool
                 </a>
 
                 <a
+                    href="horarios-profissionais.php"
+                    class="app-sidebar-link <?= menuAtivo(['horarios-profissionais.php']) ?>"
+                >
+                    Horários dos profissionais
+                </a>
+
+                <a
                     href="identidade-visual.php"
                     class="app-sidebar-link <?= menuAtivo(['identidade-visual.php']) ?>"
                 >
@@ -212,3 +219,4 @@ function podeMenu(string $permissao): bool
 </aside>
 
 <div class="app-overlay" id="appOverlay"></div>
+
