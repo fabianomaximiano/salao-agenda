@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1); session_start(); require_once __DIR__.'/../includes/cliente-auth.php';
-$clientId=(string)getenv('GOOGLE_CLIENT_ID');$clientSecret=(string)getenv('GOOGLE_CLIENT_SECRET');$redirectUri=(string)(getenv('GOOGLE_REDIRECT_URI')?:'http://localhost:8096/callback.php');$pdo=getDB();$action=(string)($_GET['action']??'');
+$clientId=(string)($_ENV['GOOGLE_CLIENT_ID'] ?? getenv('GOOGLE_CLIENT_ID') ?: '');$clientSecret=(string)($_ENV['GOOGLE_CLIENT_SECRET'] ?? getenv('GOOGLE_CLIENT_SECRET') ?: '');$redirectUri=(string)($_ENV['GOOGLE_REDIRECT_URI'] ?? getenv('GOOGLE_REDIRECT_URI') ?: 'http://localhost:8096/callback.php');$pdo=getDB();$action=(string)($_GET['action']??'');
 function googleErro(string $slug=''): never{$u='login-cliente.php'.($slug!==''?'?empresa='.rawurlencode($slug).'&erro=google':'?erro=google');header('Location: '.$u);exit;}
 if($clientId===''||$clientSecret===''){error_log('Google OAuth não configurado.');googleErro((string)($_GET['empresa']??''));}
 if($action==='auth'){$slug=trim((string)($_GET['empresa']??''));$empresa=clienteEmpresaPorSlug($pdo,$slug);if(!$empresa){http_response_code(404);exit('Empresa não encontrada.');}$state=bin2hex(random_bytes(32));$_SESSION['google_oauth_cliente']=['state'=>$state,'empresa_id'=>(int)$empresa['id'],'empresa_slug'=>(string)$empresa['slug'],'criado_em'=>time()];$url='https://accounts.google.com/o/oauth2/v2/auth?'.http_build_query(['client_id'=>$clientId,'redirect_uri'=>$redirectUri,'response_type'=>'code','scope'=>'openid email profile','access_type'=>'online','prompt'=>'select_account','state'=>$state]);header('Location: '.$url);exit;}

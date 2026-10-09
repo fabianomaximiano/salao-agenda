@@ -313,7 +313,7 @@ if ($acao === 'liberar_acesso') {
         $tokenService = new TokenAtivacaoService();
         $tokenReferencia = $tokenService->gerar($pdo, $usuarioId);
 
-        $appUrl = rtrim((string) (getenv('APP_URL') ?: 'http://localhost:8096'), '/');
+        $appUrl = rtrim((string) ($_ENV['APP_URL'] ?? getenv('APP_URL') ?: 'http://localhost:8096'), '/');
         $linkConfirmacao = $appUrl . '/confirmar-codigo.php?token=' . urlencode($tokenReferencia);
 
         $nome = (string) $colaborador['nome_completo'];

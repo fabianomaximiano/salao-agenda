@@ -374,7 +374,7 @@ if ($acao === 'liberar_acesso') {
         $tokenReferencia = $tokenService->gerar($pdo, $usuarioId);
 
         $appUrl = rtrim(
-            (string) (getenv('APP_URL') ?: 'http://localhost:8096'),
+            (string) ($_ENV['APP_URL'] ?? getenv('APP_URL') ?: 'http://localhost:8096'),
             '/'
         );
 

@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $token = $service->gerar($pdo, (int) $usuario['id'], $ipHash);
 
                     try {
-                        $appUrl = rtrim((string) (getenv('APP_URL') ?: 'http://localhost:8096'), '/');
+                        $appUrl = rtrim((string) ($_ENV['APP_URL'] ?? getenv('APP_URL') ?: 'http://localhost:8096'), '/');
                         $link = $appUrl . '/redefinir-senha.php?token=' . urlencode($token);
                         $nome = trim((string) $usuario['nome_completo']);
                         $dados = [

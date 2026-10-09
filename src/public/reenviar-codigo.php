@@ -137,7 +137,7 @@ try {
     $validadeMinutos = 10;
 
     if ($modo === 'profissional' || $modo === 'colaborador') {
-        $appUrl = rtrim((string) (getenv('APP_URL') ?: 'http://localhost:8096'), '/');
+        $appUrl = rtrim((string) ($_ENV['APP_URL'] ?? getenv('APP_URL') ?: 'http://localhost:8096'), '/');
         $linkConfirmacao = $appUrl
             . '/confirmar-codigo.php?token='
             . urlencode($tokenReferencia);
