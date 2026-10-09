@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-session_start();
+require_once __DIR__ . '/../includes/session.php';
 require_once __DIR__.'/../includes/cliente-auth.php';
 $pdo=getDB(); $slug=trim((string)($_GET['empresa']??$_POST['empresa']??'')); $empresa=clienteEmpresaPorSlug($pdo,$slug);
 if(!$empresa){http_response_code(404);exit('Empresa não encontrada ou indisponível.');}

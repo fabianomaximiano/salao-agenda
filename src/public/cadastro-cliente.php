@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-session_start();
+require_once __DIR__ . '/../includes/session.php';
 if (empty($_SESSION['csrf_cadastro_cliente']) || !is_string($_SESSION['csrf_cadastro_cliente'])) {
     $_SESSION['csrf_cadastro_cliente'] = bin2hex(random_bytes(32));
 }

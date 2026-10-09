@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1); session_start();
+declare(strict_types=1); require_once __DIR__ . '/../includes/session.php';
 if(empty($_SESSION['csrf_completar_cadastro_cliente'])||!is_string($_SESSION['csrf_completar_cadastro_cliente']))$_SESSION['csrf_completar_cadastro_cliente']=bin2hex(random_bytes(32));
 require_once __DIR__.'/../includes/cliente-auth.php';
 $pend=$_SESSION['cliente_cadastro_pendente']??null; if(!is_array($pend)){http_response_code(400);exit('Não há cadastro de cliente pendente.');}

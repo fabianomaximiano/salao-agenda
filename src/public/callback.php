@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1); session_start(); require_once __DIR__.'/../includes/cliente-auth.php';
+declare(strict_types=1); require_once __DIR__ . '/../includes/session.php'; require_once __DIR__.'/../includes/cliente-auth.php';
 $clientId=(string)($_ENV['GOOGLE_CLIENT_ID'] ?? getenv('GOOGLE_CLIENT_ID') ?: '');$clientSecret=(string)($_ENV['GOOGLE_CLIENT_SECRET'] ?? getenv('GOOGLE_CLIENT_SECRET') ?: '');$redirectUri=(string)($_ENV['GOOGLE_REDIRECT_URI'] ?? getenv('GOOGLE_REDIRECT_URI') ?: 'http://localhost:8096/callback.php');$pdo=getDB();$action=(string)($_GET['action']??'');
 function googleErro(string $slug=''): never{$u='login-cliente.php'.($slug!==''?'?empresa='.rawurlencode($slug).'&erro=google':'?erro=google');header('Location: '.$u);exit;}
 if($clientId===''||$clientSecret===''){error_log('Google OAuth não configurado.');googleErro((string)($_GET['empresa']??''));}
