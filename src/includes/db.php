@@ -1,17 +1,12 @@
 <?php
-function getDB() {
-    $host = getenv('DB_HOST') ?: 'mysql';
-    $db   = getenv('DB_NAME') ?: 'salao_agenda';
-    $user = getenv('DB_USER') ?: 'root';
-    $pass = getenv('DB_PASS') ?: 'secret';
 
-    try {
-        $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        return $pdo;
-    } catch (PDOException $e) {
-        error_log('Erro de conexão com o banco de dados: ' . $e->getMessage());
-        http_response_code(500);
-        die('Erro interno do servidor.');
-    }
+declare(strict_types=1);
+
+require_once __DIR__ . '/config.php';
+
+function getDB(): PDO
+{
+    global $pdo;
+
+    return $pdo;
 }
