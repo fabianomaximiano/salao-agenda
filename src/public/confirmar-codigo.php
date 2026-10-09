@@ -198,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $usuario) {
             $codigoService->validar($pdo, $usuarioId, $codigo);
 
             $tokenSenha = $tokenService->gerar($pdo, $usuarioId);
-            $appUrl = rtrim((string) (getenv('APP_URL') ?: 'http://localhost:8096'), '/');
+            $appUrl = rtrim((string) ($_ENV['APP_URL'] ?? getenv('APP_URL') ?: 'http://localhost:8096'),'/');
             $linkAtivacao = $appUrl . '/definir-senha.php?token=' . urlencode($tokenSenha);
 
             $nome = (string) $usuario['nome_completo'];
