@@ -80,6 +80,8 @@ $bairro = trim((string) ($_POST['bairro'] ?? ''));
 $cidade = trim((string) ($_POST['cidade'] ?? ''));
 $estado = strtoupper(trim((string) ($_POST['estado'] ?? '')));
 $cargo = trim((string) ($_POST['cargo'] ?? ''));
+$anoInicioCarreiraRaw = trim((string) ($_POST['ano_inicio_carreira'] ?? ''));
+$anoInicioCarreira = null;
 $descricao = trim((string) ($_POST['descricao'] ?? ''));
 
 $old = compact(
@@ -87,6 +89,7 @@ $old = compact(
     'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade',
     'estado', 'cargo', 'descricao'
 );
+$old['ano_inicio_carreira'] = $anoInicioCarreiraRaw;
 $old['nome_completo'] = $nomeCompleto;
 $old['data_nascimento'] = $dataNascimento;
 unset($old['nomeCompleto'], $old['dataNascimento']);
@@ -127,6 +130,20 @@ if ($telefone === '' && $whatsapp === 1) {
 if (mb_strlen($cargo) > 120) {
     $erros['cargo'] = 'O cargo deve ter no máximo 120 caracteres.';
 }
+
+if ($anoInicioCarreiraRaw !== '') {
+    if (!preg_match('/^\d{4}$/', $anoInicioCarreiraRaw)) {
+        $erros['ano_inicio_carreira'] = 'Informe o ano de início da carreira com 4 dígitos.';
+    } else {
+        $anoInicioCarreira = (int) $anoInicioCarreiraRaw;
+        $anoAtual = (int) date('Y');
+
+        if ($anoInicioCarreira < 1900 || $anoInicioCarreira > $anoAtual) {
+            $erros['ano_inicio_carreira'] = 'Informe um ano entre 1900 e ' . $anoAtual . '.';
+        }
+    }
+}
+
 if (mb_strlen($descricao) > 3000) {
     $erros['descricao'] = 'A descrição deve ter no máximo 3000 caracteres.';
 }
@@ -219,6 +236,7 @@ try {
     $stmtProfissional = $pdo->prepare(
         'UPDATE profissionais
          SET cargo = :cargo,
+             ano_inicio_carreira = :ano_inicio_carreira,
              descricao = :descricao,
              foto_url = :foto_url
          WHERE id = :profissional_id
@@ -228,6 +246,7 @@ try {
     );
     $stmtProfissional->execute([
         ':cargo' => $cargo !== '' ? $cargo : null,
+        ':ano_inicio_carreira' => $anoInicioCarreira,
         ':descricao' => $descricao !== '' ? $descricao : null,
         ':foto_url' => $fotoParaSalvar,
         ':profissional_id' => $profissionalId,

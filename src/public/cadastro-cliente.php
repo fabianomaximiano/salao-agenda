@@ -36,12 +36,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     elseif ($senha !== $conf) $erro = 'As senhas não conferem.';
     else try {
         $pdo->beginTransaction();
-        $stmt = $pdo->prepare('SELECT id FROM usuarios WHERE email=:email LIMIT 1 FOR UPDATE');
+        $stmt = $pdo->prepare('SELECT id,email,senha_hash,ativo FROM usuarios WHERE email=:email LIMIT 1 FOR UPDATE');
         $stmt->execute([':email' => $email]);
-        if ($stmt->fetch()) throw new RuntimeException('Este e-mail já possui uma conta. Entre com sua senha ou use o Google.');
-        $stmt = $pdo->prepare('INSERT INTO usuarios (email,senha_hash,ativo) VALUES (:email,:hash,1)');
-        $stmt->execute([':email' => $email, ':hash' => password_hash($senha, PASSWORD_DEFAULT)]);
-        $uid = (int)$pdo->lastInsertId();
+        $usuarioExistente = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($usuarioExistente) {
+            if (!(bool)$usuarioExistente['ativo']) {
+                throw new RuntimeException('Esta conta de acesso está inativa.');
+            }
+            if (empty($usuarioExistente['senha_hash']) || !password_verify($senha, (string)$usuarioExistente['senha_hash'])) {
+                throw new RuntimeException('A senha informada não corresponde à conta existente.');
+            }
+            $uid = (int)$usuarioExistente['id'];
+        } else {
+            $stmt = $pdo->prepare('INSERT INTO usuarios (email,senha_hash,ativo) VALUES (:email,:hash,1)');
+            $stmt->execute([':email' => $email, ':hash' => password_hash($senha, PASSWORD_DEFAULT)]);
+            $uid = (int)$pdo->lastInsertId();
+        }
         $cliente = clienteSalvarPerfil($pdo, $empresa, $uid, $email, ['nome_completo' => $v['nome_completo'], 'cpf' => $v['cpf'], 'data_nascimento' => $v['data_nascimento'], 'genero' => $v['genero'], 'celular' => $v['celular'], 'cep' => $v['cep'], 'logradouro' => $v['logradouro'], 'numero' => $v['numero'], 'complemento' => $v['complemento'], 'bairro' => $v['bairro'], 'cidade' => $v['cidade'], 'estado' => mb_strtoupper($v['estado'])]);
         $pdo->commit();
         clienteIniciarSessao($pdo, ['id' => $uid, 'email' => $email], $cliente, $empresa);

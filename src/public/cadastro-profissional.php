@@ -51,6 +51,7 @@ if ($editarId) {
             pr.cargo,
             pr.descricao,
             pr.foto_url,
+            pr.ano_inicio_carreira,
             pr.ativo,
             p.nome_completo,
             p.cpf,
@@ -354,6 +355,28 @@ require __DIR__ . '/partials/navbar.php';
                             <div class="invalid-feedback">
                                 <?= htmlspecialchars($erros['cargo'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                             </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ano_inicio_carreira">Ano de início da carreira</label>
+                            <input
+                                type="number"
+                                class="form-control<?= isset($erros['ano_inicio_carreira']) ? ' is-invalid' : '' ?>"
+                                id="ano_inicio_carreira"
+                                name="ano_inicio_carreira"
+                                min="1900"
+                                max="<?= (int) date('Y') ?>"
+                                step="1"
+                                inputmode="numeric"
+                                value="<?= valorProfissional($old, $profissionalEdicao, 'ano_inicio_carreira') ?>"
+                                placeholder="Ex.: 2014"
+                            >
+                            <div class="invalid-feedback">
+                                <?= htmlspecialchars($erros['ano_inicio_carreira'] ?? '', ENT_QUOTES, 'UTF-8') ?>
+                            </div>
+                            <small class="form-text text-muted">
+                                Informe o ano em que o profissional iniciou a carreira.
+                            </small>
                         </div>
 
                         <div class="form-group">

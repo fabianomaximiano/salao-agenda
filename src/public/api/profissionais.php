@@ -461,11 +461,14 @@ if ($acao === 'atualizar') {
             pr.usuario_id,
             pr.foto_url,
             p.cpf AS cpf_atual,
-            p.data_nascimento AS data_nascimento_atual
+            p.data_nascimento AS data_nascimento_atual,
+            u.email AS email_acesso_atual
          FROM profissionais pr
          INNER JOIN pessoas p
            ON p.id = pr.pessoa_id
           AND p.empresa_id = pr.empresa_id
+         LEFT JOIN usuarios u
+           ON u.id = pr.usuario_id
          WHERE pr.id = :id
            AND pr.empresa_id = :empresa_id
          LIMIT 1'
@@ -495,10 +498,23 @@ if ($acao === 'atualizar') {
 }
 $genero = trim((string) ($_POST['genero'] ?? 'nao_informado'));
 $email = mb_strtolower(trim((string) ($_POST['email'] ?? '')));
+
+if ($acao === 'atualizar' && !empty($profissionalAtual['usuario_id'])) {
+    if (empty($profissionalAtual['email_acesso_atual'])) {
+        $erros['email'] = 'A conta de acesso vinculada não possui um e-mail válido.';
+    } else {
+        // Com conta vinculada, o e-mail operacional vem da própria conta de acesso.
+        // O formulário não pode alterá-lo nem bloquear outras atualizações por divergência no POST.
+        $email = mb_strtolower(trim((string) $profissionalAtual['email_acesso_atual']));
+    }
+}
+
 $telefone = trim((string) ($_POST['telefone'] ?? ''));
 $whatsapp = isset($_POST['whatsapp']) ? 1 : 0;
 $cargo = trim((string) ($_POST['cargo'] ?? ''));
 $descricao = trim((string) ($_POST['descricao'] ?? ''));
+$anoInicioCarreiraRaw = trim((string) ($_POST['ano_inicio_carreira'] ?? ''));
+$anoInicioCarreira = null;
 $ativo = isset($_POST['ativo']) ? 1 : 0;
 $servicosRecebidos = is_array($_POST['servicos'] ?? null) ? $_POST['servicos'] : [];
 
@@ -512,6 +528,7 @@ $old = [
     'whatsapp' => $whatsapp,
     'cargo' => $cargo,
     'descricao' => $descricao,
+    'ano_inicio_carreira' => $anoInicioCarreiraRaw,
     'ativo' => $ativo,
     'servicos' => $servicosRecebidos,
 ];
@@ -549,31 +566,6 @@ if ($email !== '' && (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($e
     $erros['email'] = 'Informe um e-mail válido.';
 }
 
-if (
-    $acao === 'atualizar'
-    && !empty($profissionalAtual['usuario_id'])
-    && !isset($erros['email'])
-) {
-    $stmtEmailAcesso = $pdo->prepare(
-        'SELECT email
-         FROM usuarios
-         WHERE id = :usuario_id
-         LIMIT 1'
-    );
-    $stmtEmailAcesso->execute([
-        ':usuario_id' => (int) $profissionalAtual['usuario_id'],
-    ]);
-    $emailAcessoAtual = $stmtEmailAcesso->fetchColumn();
-
-    if (
-        $emailAcessoAtual === false
-        || mb_strtolower((string) $emailAcessoAtual) !== $email
-    ) {
-        $erros['email'] =
-            'O e-mail corporativo está vinculado à conta de acesso e não pode ser alterado por este formulário.';
-    }
-}
-
 if (mb_strlen($telefone) > 30) {
     $erros['telefone'] = 'O telefone deve ter no máximo 30 caracteres.';
 }
@@ -588,6 +580,19 @@ if (mb_strlen($cargo) > 120) {
 
 if (mb_strlen($descricao) > 3000) {
     $erros['descricao'] = 'A descrição deve ter no máximo 3000 caracteres.';
+}
+
+if ($anoInicioCarreiraRaw !== '') {
+    if (!preg_match('/^\d{4}$/', $anoInicioCarreiraRaw)) {
+        $erros['ano_inicio_carreira'] = 'Informe o ano de início da carreira com 4 dígitos.';
+    } else {
+        $anoInicioCarreira = (int) $anoInicioCarreiraRaw;
+        $anoAtual = (int) date('Y');
+
+        if ($anoInicioCarreira < 1900 || $anoInicioCarreira > $anoAtual) {
+            $erros['ano_inicio_carreira'] = 'Informe um ano entre 1900 e ' . $anoAtual . '.';
+        }
+    }
 }
 
 if ($cpf !== null && !isset($erros['cpf'])) {
@@ -769,6 +774,7 @@ try {
                 cargo,
                 descricao,
                 foto_url,
+                ano_inicio_carreira,
                 ativo
              ) VALUES (
                 :empresa_id,
@@ -777,6 +783,7 @@ try {
                 :cargo,
                 :descricao,
                 :foto_url,
+                :ano_inicio_carreira,
                 :ativo
              )'
         );
@@ -786,6 +793,7 @@ try {
             ':cargo' => $cargo !== '' ? $cargo : null,
             ':descricao' => $descricao !== '' ? $descricao : null,
             ':foto_url' => $fotoParaSalvar,
+            ':ano_inicio_carreira' => $anoInicioCarreira,
             ':ativo' => $ativo,
         ]);
 
@@ -820,6 +828,7 @@ try {
              SET cargo = :cargo,
                  descricao = :descricao,
                  foto_url = :foto_url,
+                 ano_inicio_carreira = :ano_inicio_carreira,
                  ativo = :ativo
              WHERE id = :id
                AND empresa_id = :empresa_id'
@@ -828,6 +837,7 @@ try {
             ':cargo' => $cargo !== '' ? $cargo : null,
             ':descricao' => $descricao !== '' ? $descricao : null,
             ':foto_url' => $fotoParaSalvar,
+            ':ano_inicio_carreira' => $anoInicioCarreira,
             ':ativo' => $ativo,
             ':id' => $profissionalId,
             ':empresa_id' => $empresaId,
