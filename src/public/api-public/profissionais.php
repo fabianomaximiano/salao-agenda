@@ -83,7 +83,8 @@ try {
             pe.nome_completo,
             pr.cargo,
             pr.descricao,
-            pr.foto_url
+            pr.foto_url,
+            pr.ano_inicio_carreira
          FROM profissionais pr
          INNER JOIN pessoas pe
             ON pe.id = pr.pessoa_id
@@ -162,6 +163,12 @@ try {
             'cargo' => $registro['cargo'],
             'descricao' => $registro['descricao'],
             'foto_url' => $registro['foto_url'],
+            'ano_inicio_carreira' => $registro['ano_inicio_carreira'] !== null
+                ? (int) $registro['ano_inicio_carreira']
+                : null,
+            'anos_experiencia' => $registro['ano_inicio_carreira'] !== null
+                ? max(0, (int) date('Y') - (int) $registro['ano_inicio_carreira'])
+                : null,
             'servicos' => $servicosPorProfissional[$profissionalId] ?? [],
         ];
     }
