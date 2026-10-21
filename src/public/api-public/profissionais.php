@@ -41,6 +41,34 @@ if (
     ]);
 }
 
+/*
+ * O parâmetro id é opcional.
+ *
+ * Sem id:
+ * retorna a listagem pública atual de profissionais.
+ *
+ * Com id:
+ * retorna somente o perfil público do profissional solicitado.
+ */
+$profissionalIdFiltro = null;
+
+if (isset($_GET['id'])) {
+    $idRecebido = trim((string) $_GET['id']);
+
+    if (
+        $idRecebido === ''
+        || !ctype_digit($idRecebido)
+        || (int) $idRecebido <= 0
+    ) {
+        responderJson(400, [
+            'sucesso' => false,
+            'erro' => 'Profissional inválido.',
+        ]);
+    }
+
+    $profissionalIdFiltro = (int) $idRecebido;
+}
+
 try {
     $pdo = getDB();
 
@@ -76,8 +104,11 @@ try {
      *
      * O JOIN com pessoas também valida o empresa_id para impedir
      * qualquer associação cruzada entre tenants.
+     *
+     * Quando um id é informado, o filtro é aplicado junto com
+     * empresa_id e os status ativos.
      */
-    $stmtProfissionais = $pdo->prepare(
+    $sqlProfissionais =
         'SELECT
             pr.id,
             pe.nome_completo,
@@ -91,26 +122,59 @@ try {
            AND pe.empresa_id = pr.empresa_id
            AND pe.ativo = 1
          WHERE pr.empresa_id = :empresa_id
-           AND pr.ativo = 1
-         ORDER BY pe.nome_completo'
-    );
+           AND pr.ativo = 1';
 
-    $stmtProfissionais->execute([
+    if ($profissionalIdFiltro !== null) {
+        $sqlProfissionais .= '
+           AND pr.id = :profissional_id';
+    }
+
+    $sqlProfissionais .= '
+         ORDER BY pe.nome_completo';
+
+    $stmtProfissionais = $pdo->prepare($sqlProfissionais);
+
+    $parametrosProfissionais = [
         ':empresa_id' => $empresaId,
-    ]);
+    ];
+
+    if ($profissionalIdFiltro !== null) {
+        $parametrosProfissionais[':profissional_id'] =
+            $profissionalIdFiltro;
+    }
+
+    $stmtProfissionais->execute($parametrosProfissionais);
 
     $registrosProfissionais = $stmtProfissionais->fetchAll(
         PDO::FETCH_ASSOC
     );
 
     /*
+     * No modo individual, um profissional inexistente, inativo
+     * ou pertencente a outra empresa não pode ser exposto.
+     */
+    if (
+        $profissionalIdFiltro !== null
+        && count($registrosProfissionais) === 0
+    ) {
+        responderJson(404, [
+            'sucesso' => false,
+            'erro' => 'Profissional não encontrado.',
+        ]);
+    }
+
+    /*
      * Busca os serviços ativos e disponíveis para agendamento
      * online vinculados aos profissionais da mesma empresa.
+     *
+     * A consulta também pode ser limitada ao profissional
+     * solicitado no modo individual.
      */
-    $stmtServicos = $pdo->prepare(
+    $sqlServicos =
         'SELECT
             pr.id AS profissional_id,
-            s.id AS servico_id
+            s.id AS servico_id,
+            s.nome AS servico_nome
          FROM profissionais pr
          INNER JOIN pessoas pe
             ON pe.id = pr.pessoa_id
@@ -125,33 +189,108 @@ try {
            AND s.ativo = 1
            AND s.permite_agendamento_online = 1
          WHERE pr.empresa_id = :empresa_id
-           AND pr.ativo = 1
+           AND pr.ativo = 1';
+
+    if ($profissionalIdFiltro !== null) {
+        $sqlServicos .= '
+           AND pr.id = :profissional_id';
+    }
+
+    $sqlServicos .= '
          ORDER BY
             pr.id,
-            s.nome'
-    );
+            s.nome';
 
-    $stmtServicos->execute([
+    $stmtServicos = $pdo->prepare($sqlServicos);
+
+    $parametrosServicos = [
         ':empresa_id' => $empresaId,
-    ]);
+    ];
+
+    if ($profissionalIdFiltro !== null) {
+        $parametrosServicos[':profissional_id'] =
+            $profissionalIdFiltro;
+    }
+
+    $stmtServicos->execute($parametrosServicos);
 
     $registrosServicos = $stmtServicos->fetchAll(
         PDO::FETCH_ASSOC
     );
 
-    $servicosPorProfissional = [];
+    /*
+     * Mantemos duas representações dos serviços:
+     *
+     * - IDs: preserva integralmente o contrato da listagem atual.
+     * - Objetos públicos: usados no perfil individual para que
+     *   a página consiga exibir as especialidades pelo nome.
+     */
+    $servicosIdsPorProfissional = [];
+    $servicosPublicosPorProfissional = [];
 
     foreach ($registrosServicos as $registro) {
         $profissionalId = (int) $registro['profissional_id'];
 
-        if (!isset($servicosPorProfissional[$profissionalId])) {
-            $servicosPorProfissional[$profissionalId] = [];
+        if (!isset($servicosIdsPorProfissional[$profissionalId])) {
+            $servicosIdsPorProfissional[$profissionalId] = [];
         }
 
-        $servicosPorProfissional[$profissionalId][] =
+        if (!isset($servicosPublicosPorProfissional[$profissionalId])) {
+            $servicosPublicosPorProfissional[$profissionalId] = [];
+        }
+
+        $servicosIdsPorProfissional[$profissionalId][] =
             (int) $registro['servico_id'];
+
+        $servicosPublicosPorProfissional[$profissionalId][] = [
+            'id' => (int) $registro['servico_id'],
+            'nome' => $registro['servico_nome'],
+        ];
     }
 
+    /*
+     * Modo individual.
+     *
+     * Retorna um único objeto "profissional", próprio para
+     * alimentar a página pública de perfil/currículo.
+     */
+    if ($profissionalIdFiltro !== null) {
+        $registro = $registrosProfissionais[0];
+        $profissionalId = (int) $registro['id'];
+
+        $profissional = [
+            'id' => $profissionalId,
+            'nome' => $registro['nome_completo'],
+            'cargo' => $registro['cargo'],
+            'descricao' => $registro['descricao'],
+            'foto_url' => $registro['foto_url'],
+            'ano_inicio_carreira' => $registro['ano_inicio_carreira'] !== null
+                ? (int) $registro['ano_inicio_carreira']
+                : null,
+            'anos_experiencia' => $registro['ano_inicio_carreira'] !== null
+                ? max(
+                    0,
+                    (int) date('Y')
+                    - (int) $registro['ano_inicio_carreira']
+                )
+                : null,
+            'servicos' =>
+                $servicosPublicosPorProfissional[$profissionalId] ?? [],
+        ];
+
+        responderJson(200, [
+            'sucesso' => true,
+            'empresa' => $empresa['slug'],
+            'profissional' => $profissional,
+        ]);
+    }
+
+    /*
+     * Modo listagem.
+     *
+     * Mantém o contrato já existente, inclusive servicos como
+     * array de IDs, evitando quebrar consumidores atuais.
+     */
     $profissionais = [];
 
     foreach ($registrosProfissionais as $registro) {
@@ -167,9 +306,14 @@ try {
                 ? (int) $registro['ano_inicio_carreira']
                 : null,
             'anos_experiencia' => $registro['ano_inicio_carreira'] !== null
-                ? max(0, (int) date('Y') - (int) $registro['ano_inicio_carreira'])
+                ? max(
+                    0,
+                    (int) date('Y')
+                    - (int) $registro['ano_inicio_carreira']
+                )
                 : null,
-            'servicos' => $servicosPorProfissional[$profissionalId] ?? [],
+            'servicos' =>
+                $servicosIdsPorProfissional[$profissionalId] ?? [],
         ];
     }
 
