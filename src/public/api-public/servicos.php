@@ -82,6 +82,8 @@ try {
             s.descricao,
             s.duracao_minutos,
             s.preco,
+            s.criado_em,
+            s.atualizado_em,
             c.id AS categoria_id,
             c.nome AS categoria_nome
          FROM servicos s
@@ -123,6 +125,8 @@ try {
             'duracao_minutos' => (int) $registro['duracao_minutos'],
             'preco' => $registro['preco'],
             'categoria' => $categoria,
+            'criado_em' => $registro['criado_em'],
+            'atualizado_em' => $registro['atualizado_em'],
         ];
     }
 
