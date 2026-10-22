@@ -354,10 +354,9 @@
              * - cliente escolhe o profissional.
              *
              * Somente profissional:
-             * - o fluxo continua começando pelo serviço;
-             * - o ID do profissional fica preservado em memória;
-             * - quando o cliente escolher um serviço compatível,
-             *   o profissional será pré-selecionado automaticamente.
+             * - procura um serviço disponível atendido pelo profissional;
+             * - seleciona esse serviço para permitir carregar o select;
+             * - pré-seleciona o profissional sem intervenção manual.
              */
             if (servicoInicialId) {
                 const servicoExiste = Array.from(s.options).some(
@@ -372,6 +371,36 @@
                         servicoInicialId,
                         profissionalInicialId
                     );
+                }
+            } else if (profissionalInicialId) {
+                const servicosDisponiveis = Array.from(s.options)
+                    .map((option) => Number(option.value))
+                    .filter((id) => id > 0);
+
+                for (const servicoId of servicosDisponiveis) {
+                    const jProfissionais = await get({
+                        acao: "profissionais",
+                        servico_id: servicoId
+                    });
+
+                    const profissionalCompativel = jProfissionais.profissionais.some(
+                        (profissional) =>
+                            Number(profissional.id) === profissionalInicialId
+                    );
+
+                    if (!profissionalCompativel) {
+                        continue;
+                    }
+
+                    s.value = String(servicoId);
+                    rs.textContent = s.options[s.selectedIndex]?.text || "—";
+
+                    await carregarProfissionaisDoServico(
+                        servicoId,
+                        profissionalInicialId
+                    );
+
+                    break;
                 }
             }
         } catch (e) {
