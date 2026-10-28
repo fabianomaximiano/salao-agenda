@@ -38,6 +38,8 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
 
+      - SALAO_AGENDA_API_KEY=${SALAO_AGENDA_API_KEY}
+
       - MAIL_HOST=${MAIL_HOST}
       - MAIL_PORT=${MAIL_PORT}
       - MAIL_USERNAME=${MAIL_USERNAME}
@@ -59,6 +61,12 @@ services:
       TZ: America/Sao_Paulo
       MYSQL_ROOT_PASSWORD: secret
       MYSQL_DATABASE: salao_agenda
+
+      # Variáveis auxiliares para manutenção via CLI
+      DB_HOST: mysql
+      DB_NAME: salao_agenda
+      DB_USER: root
+      DB_PASS: secret
 
     ports:
       - "33096:3306"

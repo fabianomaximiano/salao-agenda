@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../../services/AutoAgendamentoService.php';
 
 header('Content-Type: application/json; charset=utf-8');
@@ -28,7 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     ], 405);
 }
 
-$slug = trim((string) ($_GET['empresa'] ?? ''));
+exigirApiPublicaAutenticada();
+
+$slug = trim((string) ($_GET['slug'] ?? $_GET['empresa'] ?? ''));
 $servicoId = filter_var(
     $_GET['servico_id'] ?? null,
     FILTER_VALIDATE_INT
