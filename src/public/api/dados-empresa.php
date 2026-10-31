@@ -61,6 +61,10 @@ $complemento = $nullSeVazio($_POST['complemento'] ?? null);
 $bairro = trim((string) ($_POST['bairro'] ?? ''));
 $cidade = trim((string) ($_POST['cidade'] ?? ''));
 $estado = strtoupper(trim((string) ($_POST['estado'] ?? '')));
+$latitudeRaw = trim((string) ($_POST['latitude'] ?? ''));
+$longitudeRaw = trim((string) ($_POST['longitude'] ?? ''));
+$latitude = $latitudeRaw === '' ? null : $latitudeRaw;
+$longitude = $longitudeRaw === '' ? null : $longitudeRaw;
 
 try {
     if ($nomeFantasia === '') {
@@ -103,6 +107,18 @@ try {
         );
     }
 
+    if ($latitude !== null && (!is_numeric($latitude) || (float) $latitude < -90 || (float) $latitude > 90)) {
+        throw new RuntimeException('Latitude inválida. Informe um valor entre -90 e 90.');
+    }
+
+    if ($longitude !== null && (!is_numeric($longitude) || (float) $longitude < -180 || (float) $longitude > 180)) {
+        throw new RuntimeException('Longitude inválida. Informe um valor entre -180 e 180.');
+    }
+
+    if (($latitude === null) !== ($longitude === null)) {
+        throw new RuntimeException('Informe latitude e longitude juntas.');
+    }
+
     $pdo = getDB();
 
     $stmt = $pdo->prepare(
@@ -142,7 +158,9 @@ try {
             complemento = :complemento,
             bairro = :bairro,
             cidade = :cidade,
-            estado = :estado
+            estado = :estado,
+            latitude = :latitude,
+            longitude = :longitude
         WHERE id = :empresa_id
         '
     );
@@ -160,6 +178,8 @@ try {
         ':bairro' => $bairro,
         ':cidade' => $cidade,
         ':estado' => $estado,
+        ':latitude' => $latitude,
+        ':longitude' => $longitude,
         ':empresa_id' => $empresaId,
     ]);
 

@@ -61,6 +61,8 @@ try {
             bairro,
             cidade,
             estado,
+            latitude,
+            longitude,
             timezone,
             logo_url
          FROM empresas
@@ -101,6 +103,8 @@ try {
                 'bairro' => $empresa['bairro'],
                 'cidade' => $empresa['cidade'],
                 'estado' => $empresa['estado'],
+                'latitude' => $empresa['latitude'] !== null ? (float) $empresa['latitude'] : null,
+                'longitude' => $empresa['longitude'] !== null ? (float) $empresa['longitude'] : null,
             ],
             'timezone' => $empresa['timezone'],
         ],

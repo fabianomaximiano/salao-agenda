@@ -177,6 +177,19 @@ require __DIR__ . '/partials/navbar.php';
                     </div>
                 </div>
 
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="latitude">Latitude</label>
+                        <input type="number" class="form-control" id="latitude" name="latitude" min="-90" max="90" step="0.00000001" inputmode="decimal" value="<?= e($empresa, 'latitude') ?>">
+                        <small class="form-text text-muted">Opcional. Informe a coordenada exata do estabelecimento.</small>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="longitude">Longitude</label>
+                        <input type="number" class="form-control" id="longitude" name="longitude" min="-180" max="180" step="0.00000001" inputmode="decimal" value="<?= e($empresa, 'longitude') ?>">
+                        <small class="form-text text-muted">Opcional. Informe a coordenada exata do estabelecimento.</small>
+                    </div>
+                </div>
+
                 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mt-4">
                     <a href="dashboard.php" class="btn btn-outline-secondary mb-2 mb-sm-0">Voltar ao dashboard</a>
                     <button type="submit" class="btn btn-primary">Salvar dados da empresa</button>
